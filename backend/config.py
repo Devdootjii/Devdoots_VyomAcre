@@ -9,7 +9,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+psycopg2://user:password@localhost:5432/vyomacre"
+    # Dummy URL removed. System will fail fast if .env is missing.
+    DATABASE_URL: str 
 
     APP_NAME: str = "VyomAcre Backend"
     APP_ENV: str = "development"
