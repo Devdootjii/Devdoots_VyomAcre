@@ -220,7 +220,34 @@ Used to submit property owner and space information.
   "photos": []
 }
 ```
+### 2. Get All Spaces
 
+```http
+GET /api/roofs
+```
+
+Returns all roof/space listings stored in the database.
+
+This endpoint is used by the Map Dashboard to fetch available
+space locations and display them as map markers.
+
+#### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "roof_id": 1,
+      "owner_name": "Owner Name",
+      "area_sqft": 1500,
+      "roof_type": "Concrete",
+      "latitude": 28.6139,
+      "longitude": 77.2090
+    }
+  ]
+}
+```
 ---
 
 ### 2. Engine Sync
