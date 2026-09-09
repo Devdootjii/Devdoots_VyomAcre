@@ -9,12 +9,13 @@ const apiClient = axios.create({
   },
 });
 
-// Contract A: Roof Owner Onboarding
+// Contract A: Roof Owner Onboarding (Aryan)
 export const submitRoofDetails = async (roofData) => {
   return await apiClient.post('/api/roofs/add', roofData);
 };
 
-// Contract C: Verified Roofs Feed
-export const getVerifiedRoofs = async () => {
-  return await apiClient.get('/api/roofs/verified');
+// Contract C: Fetch All Roofs for Map (Ritesh - Day 3 Update)
+// Balram is developing GET /api/roofs endpoint
+export const getAllRoofs = async () => {
+  return await apiClient.get('/api/roofs');
 };
