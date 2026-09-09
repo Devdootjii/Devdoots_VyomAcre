@@ -66,3 +66,32 @@ def add_roof_listing(payload: RoofListingCreate, db: Session = Depends(get_db)):
             code=500,
             error_details={"reason": str(exc)},
         )
+
+# ==========================================
+# DAY 3 TASK: GET ALL ROOFS ENDPOINT
+# ==========================================
+@router.get("")
+def get_all_roofs(db: Session = Depends(get_db)):
+    """
+    Day 3 Task: Fetch all roof listings from the database.
+    Used by the frontend map dashboard.
+    """
+    try:
+        roofs = db.query(RoofListing).all()
+        
+        # Data serialize kar rahe hain taaki Pydantic schemas se match kare
+        serialized_roofs = [RoofListingOut.model_validate(roof) for roof in roofs]
+        
+        # Strict Rule: Using success_response wrapper
+        return success_response(
+            message="All roof listings fetched successfully.",
+            data=serialized_roofs,
+            code=200
+        )
+    except Exception as exc:
+        logger.exception("Unexpected error while fetching roof listings")
+        return error_response(
+            message="An unexpected error occurred while fetching the roof listings.",
+            code=500,
+            error_details={"reason": str(exc)},
+        )
