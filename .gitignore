@@ -3,3 +3,6 @@ __pycache__/
 .env
 .venv
 *.pyc
+# Environment Variables
+.env
+backend/.env
