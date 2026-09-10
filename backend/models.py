@@ -1,6 +1,6 @@
 """
 models.py
-SQLAlchemy 2.0 typed ORM models for VyomAcre (Divyansh — Day 2).
+SQLAlchemy 2.0 typed ORM models for VyomAcre (Divyansh — Day 2 / Day 4).
 
 Uses the SQLAlchemy 2.0 `Mapped` / `mapped_column` style exclusively,
 per the Day 2 backend architecture constraint.
@@ -9,6 +9,7 @@ per the Day 2 backend architecture constraint.
 import enum
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import Float, String, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,6 +23,17 @@ class RoofStatusEnum(str, enum.Enum):
     approved = "approved"
     rejected = "rejected"
     leased = "leased"
+
+
+class VerificationStatusEnum(str, enum.Enum):
+    """
+    Day 4 — result of the automatic GEE area-verification background task.
+    Separate from RoofStatusEnum, which is the human/admin approval status.
+    """
+    pending_verification = "pending_verification"  # background task hasn't run yet
+    verified = "verified"                            # submitted area roughly matches GEE estimate
+    flagged = "flagged"                               # submitted area differs significantly
+    verification_failed = "verification_failed"       # GEE call itself failed
 
 
 class RoofListing(Base):
@@ -54,6 +66,16 @@ class RoofListing(Base):
         default=RoofStatusEnum.pending,
         server_default=RoofStatusEnum.pending.value,
     )
+
+    # --- Day 4: automatic GEE verification flow ---
+    verification_status: Mapped[VerificationStatusEnum] = mapped_column(
+        String(30),
+        nullable=False,
+        default=VerificationStatusEnum.pending_verification,
+        server_default=VerificationStatusEnum.pending_verification.value,
+    )
+    gee_estimated_area_sqft: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    verification_message: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

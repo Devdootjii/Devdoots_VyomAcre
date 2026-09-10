@@ -31,6 +31,14 @@ class RoofStatus(str, Enum):
     leased = "leased"
 
 
+class VerificationStatus(str, Enum):
+    """Day 4 — automatic GEE area-verification result, separate from RoofStatus."""
+    pending_verification = "pending_verification"
+    verified = "verified"
+    flagged = "flagged"
+    verification_failed = "verification_failed"
+
+
 # ---------------------------------------------------------------------------
 # Roof onboarding — request / response contract
 # ---------------------------------------------------------------------------
@@ -63,6 +71,9 @@ class RoofListingOut(BaseModel):
     latitude: float
     longitude: float
     status: RoofStatus
+    verification_status: VerificationStatus
+    gee_estimated_area_sqft: Optional[float] = None
+    verification_message: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
