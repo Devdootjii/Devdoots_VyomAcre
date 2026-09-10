@@ -12,15 +12,20 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Internal component to handle map clicks
+// Internal component to handle map clicks and prevent crash
 function LocationMarker({ position, setPosition }) {
     useMapEvents({
         click(e) {
-            setPosition(e.latlng); // Click karte hi location parent ko bhej dega
+            setPosition(e.latlng); 
         },
     });
 
-    return position === null ? null : (
+    // SAFETY CHECK: Agar position null ya undefined hai, toh Marker load nahi hoga (No Crash!)
+    if (!position || position.lat === undefined) {
+        return null;
+    }
+
+    return (
         <Marker position={position}></Marker>
     );
 }
@@ -28,7 +33,7 @@ function LocationMarker({ position, setPosition }) {
 export default function MapPicker({ position, setPosition }) {
     return (
         <div className="h-64 w-full rounded-md overflow-hidden border border-slate-300">
-            {/* Default center Lucknow (26.8467, 80.9462) par set kiya hai */}
+            {/* Default center set to Lucknow (26.8467, 80.9462) */}
             <MapContainer 
                 center={[26.8467, 80.9462]} 
                 zoom={13} 
@@ -36,7 +41,7 @@ export default function MapPicker({ position, setPosition }) {
             >
                 <TileLayer 
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" 
-                    attribution='&copy; OpenStreetMap contributors'
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 <LocationMarker position={position} setPosition={setPosition} />
             </MapContainer>
