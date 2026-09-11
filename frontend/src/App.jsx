@@ -8,7 +8,6 @@ import VyomLanding from './components/VyomLanding';
 // 🛠️ TEAM KE EXISTING COMPONENTS (Safe & Untouched)
 import LandingPage from './components/LandingPage'; // Purana landing page
 import OwnerForm from './components/OwnerForm';
-import RoofListingForm from './components/RoofListingForm';
 import MapDashboard from './components/MapDashboard';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 
@@ -30,7 +29,6 @@ export default function App() {
               <div className="max-w-3xl mx-auto flex flex-col gap-8">
                 <h2 className="text-3xl font-extrabold text-slate-800 text-center">Registration Portal</h2>
                 <OwnerForm />
-                <RoofListingForm />
                 <OwnerStatusDashboard />
               </div>
             </div>
@@ -53,7 +51,6 @@ export default function App() {
               <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
                 <section id="owner-form" className="flex flex-col gap-8">
                   <OwnerForm />
-                  <RoofListingForm />
                 </section>
                 <MapDashboard />
               </main>
