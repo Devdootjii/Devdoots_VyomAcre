@@ -36,6 +36,13 @@ class VerificationStatusEnum(str, enum.Enum):
     verification_failed = "verification_failed"       # GEE call itself failed
 
 
+class ScanStatusEnum(str, enum.Enum):
+    """Day 5/6/7 — outcome of a GEE scan attempt for a given grid zone."""
+    scanned = "scanned"                # a live GEE call succeeded for this zone
+    failed = "failed"                  # a live GEE call was attempted and failed
+    skipped_redundant = "skipped_redundant"  # "Skip & Move" reused a recent scan, no live call made
+
+
 class RoofListing(Base):
     """
     Represents a rooftop submitted by an owner for leasing/mapping.
@@ -84,3 +91,51 @@ class RoofListing(Base):
 
     def __repr__(self) -> str:
         return f"<RoofListing id={self.id} owner={self.owner_name} status={self.status}>"
+
+
+class ScannedZone(Base):
+    """
+    Day 5/6/7 — Divyansh: spatial gridding record.
+
+    Every lat/lon submitted for GEE verification is snapped to a coarse
+    grid cell (see engine/scan_manager.get_zone_key — both layers use the
+    same grid math so a coordinate always maps to the same zone_key here
+    and in the engine's local cache).
+
+    This table is the durable, cross-process record of "have we already
+    scanned around here" — used by the backend's Skip & Move check before
+    it schedules another live GEE call, independently of the engine's own
+    local JSON cache (which resets if the engine process/container is
+    redeployed; this table doesn't).
+    """
+
+    __tablename__ = "scanned_zones"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+
+    zone_key: Mapped[str] = mapped_column(String(40), nullable=False, unique=True, index=True)
+    grid_lat: Mapped[float] = mapped_column(Float, nullable=False)
+    grid_lon: Mapped[float] = mapped_column(Float, nullable=False)
+
+    scan_status: Mapped[ScanStatusEnum] = mapped_column(
+        String(20),
+        nullable=False,
+        default=ScanStatusEnum.scanned,
+        server_default=ScanStatusEnum.scanned.value,
+    )
+    gee_estimated_area_sqft: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Incremented every time a roof lands in this zone, whether or not a
+    # live GEE call was actually made for it — useful for spotting hotspots.
+    request_count: Mapped[int] = mapped_column(default=1, server_default="1", nullable=False)
+
+    last_scanned_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<ScannedZone zone_key={self.zone_key} status={self.scan_status} requests={self.request_count}>"

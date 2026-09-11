@@ -6,3 +6,6 @@ __pycache__/
 # Environment Variables
 .env
 backend/.env
+scanned_zones_cache.json
+Start_VyomAcre.bat
+.bat
