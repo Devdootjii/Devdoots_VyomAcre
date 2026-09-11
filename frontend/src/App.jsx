@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import LandingPage from './components/LandingPage';
 import OwnerForm from './components/OwnerForm';
 import MapDashboard from './components/MapDashboard';
-import OwnerStatusDashboard from './components/OwnerStatusDashboard';
+// Balram's forms are temporarily removed from this view to avoid UI conflicts 
+// and allow focus on the B2B Marketplace task.
 
 export default function App() {
   const [ownerData, setOwnerData] = useState(() => {
@@ -52,3 +53,5 @@ export default function App() {
     </div>
   );
 }
+
+export default App;

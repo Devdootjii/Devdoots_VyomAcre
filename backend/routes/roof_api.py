@@ -4,14 +4,15 @@ Roof onboarding endpoints for VyomAcre.
 """
 
 import logging
+import uuid
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import RoofListing, RoofStatusEnum
+from models import RoofListing, RoofStatusEnum, VerificationStatusEnum
 from schemas import RoofListingCreate, RoofListingOut
 from services.verification_service import run_area_verification
 from utils.response_helper import error_response, success_response
@@ -92,13 +93,29 @@ def get_roof_listings(
     status_filter: Optional[RoofStatusEnum] = Query(
         default=None,
         alias="status",
-        description="Optional filter, e.g. ?status=approved",
+        description="Optional filter on admin approval status, e.g. ?status=approved",
+    ),
+    verification_filter: Optional[VerificationStatusEnum] = Query(
+        default=None,
+        alias="verification",
+        description="Optional filter on GEE verification status, e.g. ?verification=verified",
+    ),
+    min_area: Optional[float] = Query(
+        default=None,
+        ge=0,
+        description="Optional minimum area_sqft filter, e.g. ?min_area=500",
+    ),
+    roof_type: Optional[str] = Query(
+        default=None,
+        description="Optional roof type filter, e.g. ?roof_type=flat",
     ),
     db: Session = Depends(get_db),
 ):
     """
-    Fetch all roof listings (Day 3 — used by Ritesh's MapDashboard.jsx to
-    render live markers instead of dummy coordinates).
+    Fetch roof listings, with optional filters (Day 3 base + Day 5-7
+    additions for Ritesh's Company Marketplace filters — Min Area,
+    Property Type — and verification-status filtering so only
+    GEE-verified pins can be shown on the map if desired).
 
     Always returns through the standardized `success_response` wrapper,
     even when the result set is empty — an empty list is not an error.
@@ -108,6 +125,15 @@ def get_roof_listings(
 
         if status_filter is not None:
             query = query.filter(RoofListing.status == status_filter.value)
+
+        if verification_filter is not None:
+            query = query.filter(RoofListing.verification_status == verification_filter.value)
+
+        if min_area is not None:
+            query = query.filter(RoofListing.area_sqft >= min_area)
+
+        if roof_type is not None:
+            query = query.filter(RoofListing.roof_type == roof_type)
 
         roofs = query.order_by(RoofListing.created_at.desc()).all()
 
@@ -131,4 +157,66 @@ def get_roof_listings(
             message="An unexpected error occurred while fetching roof listings.",
             code=500,
             error_details={"reason": str(exc)},
+        )
+
+
+@router.get("/owner/{phone_number}")
+def get_roofs_by_owner(phone_number: str, db: Session = Depends(get_db)):
+    """
+    Fetch all listings submitted by one owner (Day 5-7 — Harsh's Owner
+    Status Dashboard). Owners don't know their listing's UUID, but they
+    do know their own phone number, so that's the lookup key here.
+    """
+    try:
+        roofs = (
+            db.query(RoofListing)
+            .filter(RoofListing.phone_number == phone_number)
+            .order_by(RoofListing.created_at.desc())
+            .all()
+        )
+
+        return success_response(
+            message=f"Fetched {len(roofs)} listing(s) for this owner.",
+            data=[RoofListingOut.model_validate(roof) for roof in roofs],
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        logger.exception("Database error while fetching owner's roof listings")
+        return error_response(
+            message="Failed to fetch listings due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.get("/{roof_id}")
+def get_roof_listing_by_id(roof_id: uuid.UUID, db: Session = Depends(get_db)):
+    """
+    Fetch a single roof listing by ID — used wherever the frontend already
+    has a specific listing's ID (e.g. a detail view opened from a map pin
+    or a list row) and just needs its latest verification status.
+    """
+    try:
+        roof = db.query(RoofListing).filter(RoofListing.id == roof_id).first()
+
+        if roof is None:
+            return error_response(
+                message="Roof listing not found.",
+                code=404,
+                error_details={"roof_id": str(roof_id)},
+            )
+
+        return success_response(
+            message="Roof listing fetched successfully.",
+            data=RoofListingOut.model_validate(roof),
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        logger.exception("Database error while fetching roof listing %s", roof_id)
+        return error_response(
+            message="Failed to fetch the roof listing due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
         )
