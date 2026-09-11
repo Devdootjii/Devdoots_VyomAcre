@@ -1,13 +1,55 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import LandingPage from './components/LandingPage';
+import OwnerForm from './components/OwnerForm';
 import MapDashboard from './components/MapDashboard';
 // Balram's forms are temporarily removed from this view to avoid UI conflicts 
 // and allow focus on the B2B Marketplace task.
 
-function App() {
+export default function App() {
+  const [ownerData, setOwnerData] = useState(() => {
+    try {
+      const savedOwnerData = localStorage.getItem('vyomacre_owner_data');
+
+      if (savedOwnerData) {
+        return JSON.parse(savedOwnerData);
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Failed to load owner data from localStorage:', error);
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (ownerData) {
+      localStorage.setItem(
+        'vyomacre_owner_data',
+        JSON.stringify(ownerData)
+      );
+    }
+  }, [ownerData]);
+
+  const handleOwnerSubmitSuccess = (submittedData) => {
+    setOwnerData({
+      ...submittedData,
+      status: 'Pending'
+    });
+  };
+
   return (
-    <div className="w-screen h-screen overflow-hidden bg-gray-50">
-      {/* Sirf tumhara Company Marketplace render hoga */}
-      <MapDashboard />
+    <div className="min-h-screen bg-slate-950">
+      <LandingPage />
+
+      <main className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <OwnerForm
+          onSubmitSuccess={handleOwnerSubmitSuccess}
+        />
+
+        <MapDashboard />
+      </main>
+
+      <OwnerStatusDashboard ownerData={ownerData} />
     </div>
   );
 }

@@ -1,12 +1,21 @@
 import React from 'react';
 
-export default function OwnerStatusDashboard() {
+export default function OwnerStatusDashboard({ ownerData }) {
+    const hasSubmission = Boolean(ownerData);
+
+    const ownerName = ownerData?.owner_name || 'No submission yet';
+    const area = ownerData?.area_sqft || 0;
+    const propertyType = ownerData?.property_type || 'roof';
+    const status = ownerData?.status || 'Pending';
+
+    const propertyLabel =
+        propertyType === 'plot' ? 'Plot Area' : 'Roof Area';
+
     return (
         <section
             id="owner-status"
             className="relative overflow-hidden bg-slate-950 px-6 py-20 text-white lg:px-8"
         >
-
             {/* Background Glow */}
             <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-sky-500/10 blur-3xl" />
             <div className="pointer-events-none absolute -right-40 bottom-10 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
@@ -20,18 +29,22 @@ export default function OwnerStatusDashboard() {
                     </p>
 
                     <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
-                        Roof Verification Status
+                        {hasSubmission
+                            ? 'Property Verification Status'
+                            : 'Track Your Property'}
                     </h2>
 
                     <p className="mt-4 max-w-2xl text-lg text-slate-400">
-                        Check the current verification status of your submitted roof.
+                        {hasSubmission
+                            ? 'Check the current verification status of your submitted property.'
+                            : 'Submit your property details to start the verification process.'}
                     </p>
                 </div>
 
                 {/* Owner Information Card */}
                 <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
 
-                    <div className="grid gap-8 md:grid-cols-3">
+                    <div className="grid gap-8 md:grid-cols-4">
 
                         {/* Owner Name */}
                         <div className="border-b border-white/10 pb-6 md:border-b-0 md:border-r md:pb-0">
@@ -40,18 +53,29 @@ export default function OwnerStatusDashboard() {
                             </p>
 
                             <p className="mt-2 text-2xl font-bold text-white">
-                                Atul
+                                {ownerName}
                             </p>
                         </div>
 
-                        {/* Roof Area */}
+                        {/* Property Type */}
                         <div className="border-b border-white/10 pb-6 md:border-b-0 md:border-r md:pb-0 md:pl-8">
                             <p className="text-sm font-medium text-slate-500">
-                                Roof Area
+                                Property Type
+                            </p>
+
+                            <p className="mt-2 text-2xl font-bold capitalize text-white">
+                                {propertyType}
+                            </p>
+                        </div>
+
+                        {/* Area */}
+                        <div className="border-b border-white/10 pb-6 md:border-b-0 md:border-r md:pb-0 md:pl-8">
+                            <p className="text-sm font-medium text-slate-500">
+                                {propertyLabel}
                             </p>
 
                             <p className="mt-2 text-2xl font-bold text-white">
-                                500 sq ft
+                                {area > 0 ? `${area} sq ft` : 'Not submitted'}
                             </p>
                         </div>
 
@@ -63,11 +87,13 @@ export default function OwnerStatusDashboard() {
 
                             <div className="mt-2 flex items-center gap-3">
                                 <span className="text-2xl font-bold text-amber-400">
-                                    Pending
+                                    {status}
                                 </span>
 
                                 <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                                    Under Review
+                                    {status === 'Pending'
+                                        ? 'Under Review'
+                                        : status}
                                 </span>
                             </div>
                         </div>
@@ -78,7 +104,6 @@ export default function OwnerStatusDashboard() {
                 {/* Verification Progress */}
                 <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
 
-                    {/* Progress Header */}
                     <div className="flex flex-wrap items-center justify-between gap-4">
 
                         <div>
@@ -87,12 +112,14 @@ export default function OwnerStatusDashboard() {
                             </p>
 
                             <p className="mt-1 text-sm text-slate-500">
-                                Your roof verification is currently in progress.
+                                {hasSubmission
+                                    ? 'Your property verification is currently in progress.'
+                                    : 'Verification will begin after property submission.'}
                             </p>
                         </div>
 
                         <p className="text-4xl font-black text-sky-400">
-                            50%
+                            {hasSubmission ? '50%' : '0%'}
                         </p>
 
                     </div>
@@ -101,7 +128,9 @@ export default function OwnerStatusDashboard() {
                     <div className="mt-8 h-3 overflow-hidden rounded-full bg-slate-800">
                         <div
                             className="h-full rounded-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 shadow-lg shadow-sky-500/20"
-                            style={{ width: '50%' }}
+                            style={{
+                                width: hasSubmission ? '50%' : '0%',
+                            }}
                         />
                     </div>
 
@@ -111,18 +140,33 @@ export default function OwnerStatusDashboard() {
                         {/* Submitted */}
                         <div className="relative">
 
-                            <div className="mb-5 h-1 rounded-full bg-emerald-400" />
+                            <div
+                                className={`mb-5 h-1 rounded-full ${hasSubmission
+                                        ? 'bg-emerald-400'
+                                        : 'bg-slate-700'
+                                    }`}
+                            />
 
-                            <p className="text-lg font-bold text-emerald-400">
+                            <p
+                                className={`text-lg font-bold ${hasSubmission
+                                        ? 'text-emerald-400'
+                                        : 'text-slate-500'
+                                    }`}
+                            >
                                 Submitted
                             </p>
 
                             <p className="mt-2 text-sm leading-6 text-slate-400">
-                                Roof details submitted successfully.
+                                Property details submitted successfully.
                             </p>
 
-                            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-emerald-400">
-                                Completed
+                            <p
+                                className={`mt-4 text-xs font-semibold uppercase tracking-wider ${hasSubmission
+                                        ? 'text-emerald-400'
+                                        : 'text-slate-600'
+                                    }`}
+                            >
+                                {hasSubmission ? 'Completed' : 'Waiting'}
                             </p>
 
                         </div>
@@ -130,18 +174,33 @@ export default function OwnerStatusDashboard() {
                         {/* Verification */}
                         <div className="relative">
 
-                            <div className="mb-5 h-1 rounded-full bg-sky-400" />
+                            <div
+                                className={`mb-5 h-1 rounded-full ${hasSubmission
+                                        ? 'bg-sky-400'
+                                        : 'bg-slate-700'
+                                    }`}
+                            />
 
-                            <p className="text-lg font-bold text-sky-400">
+                            <p
+                                className={`text-lg font-bold ${hasSubmission
+                                        ? 'text-sky-400'
+                                        : 'text-slate-500'
+                                    }`}
+                            >
                                 Verification
                             </p>
 
                             <p className="mt-2 text-sm leading-6 text-slate-400">
-                                Your roof is currently being reviewed.
+                                Your property is reviewed by the verification system.
                             </p>
 
-                            <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-sky-400">
-                                In Progress
+                            <p
+                                className={`mt-4 text-xs font-semibold uppercase tracking-wider ${hasSubmission
+                                        ? 'text-sky-400'
+                                        : 'text-slate-600'
+                                    }`}
+                            >
+                                {hasSubmission ? 'In Progress' : 'Waiting'}
                             </p>
 
                         </div>
@@ -177,12 +236,13 @@ export default function OwnerStatusDashboard() {
                         </p>
 
                         <p className="mt-2 text-xl font-bold">
-                            Under Review
+                            {hasSubmission ? 'Under Review' : 'No Submission'}
                         </p>
 
                         <p className="mt-2 text-sm text-slate-400">
-                            Our verification process is checking your submitted roof
-                            information.
+                            {hasSubmission
+                                ? 'Your submitted property information is currently being reviewed.'
+                                : 'Submit your roof or plot details to start the verification process.'}
                         </p>
                     </div>
 
@@ -192,12 +252,15 @@ export default function OwnerStatusDashboard() {
                         </p>
 
                         <p className="mt-2 text-xl font-bold">
-                            Wait for Approval
+                            {hasSubmission
+                                ? 'Wait for Approval'
+                                : 'Submit Property'}
                         </p>
 
                         <p className="mt-2 text-sm text-slate-400">
-                            Once verification is completed, your approval status will
-                            appear here.
+                            {hasSubmission
+                                ? 'Once verification is completed, your approval status will appear here.'
+                                : 'Complete the owner listing form to submit your property for verification.'}
                         </p>
                     </div>
 
