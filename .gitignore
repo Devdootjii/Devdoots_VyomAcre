@@ -9,3 +9,6 @@ backend/.env
 scanned_zones_cache.json
 Start_VyomAcre.bat
 .bat
+vyomacre_backup.db
+vyomacre.db
+*.db
