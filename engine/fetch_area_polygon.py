@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import os
 import logging
+from pathlib import Path
 from typing import List, Tuple, TypedDict
 
 from dotenv import load_dotenv
 
-load_dotenv()
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=_ENV_PATH)
 
 import ee  # earthengine-api
 
@@ -23,6 +25,7 @@ logger = logging.getLogger("vyomacre.engine.fetch_area_polygon")
 
 _GEE_SERVICE_ACCOUNT = os.getenv("GEE_SERVICE_ACCOUNT", "")
 _GEE_PRIVATE_KEY_PATH = os.getenv("GEE_PRIVATE_KEY_PATH", "")
+
 
 _initialized = False
 
