@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import settings
 from database import Base, engine
-from routes import lease_api, roof_api, zone_api
+from routes import ai_api, lease_api, roof_api, zone_api
 from utils.response_helper import error_response, success_response
 
 logging.basicConfig(level=logging.INFO if not settings.DEBUG else logging.DEBUG)
@@ -42,6 +42,7 @@ app.add_middleware(
 app.include_router(roof_api.router)
 app.include_router(zone_api.router)
 app.include_router(lease_api.router)
+app.include_router(ai_api.router)
 
 
 # ---------------------------------------------------------------------------

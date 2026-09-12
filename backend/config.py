@@ -11,12 +11,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # --- Database ---
-    DATABASE_URL: str = "postgresql+psycopg2://user:password@localhost:5432/vyomacre"
+    # No default on purpose (Fix 3, Divyansh's fix list) — if .env or the
+    # platform's env vars don't set this, the app should fail immediately
+    # at startup with a clear "field required" error, not silently try to
+    # connect to a fake localhost URL and produce a confusing
+    # "connection refused" error later.
+    DATABASE_URL: str
 
     # --- App ---
     APP_NAME: str = "VyomAcre Backend"
     APP_ENV: str = "development"  # development | staging | production
     DEBUG: bool = True
+
+    # --- Gemini (Fix 8 — hackathon-mandatory Google AI integration) ---
+    # No default — /api/ai/ask fails clearly if this isn't set, rather than
+    # silently trying to call the Gemini API with an empty key.
+    GEMINI_API_KEY: str = ""
 
     # --- CORS ---
     # Comma-separated list of allowed origins in the .env file, e.g.
