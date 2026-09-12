@@ -1,3 +1,8 @@
+"""
+main.py
+FastAPI entry point for the VyomAcre backend.
+"""
+
 import logging
 
 from fastapi import FastAPI, Request, status
@@ -7,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import settings
 from database import Base, engine
-from routes import roof_api
+from routes import lease_api, roof_api, zone_api
 from utils.response_helper import error_response, success_response
 
 logging.basicConfig(level=logging.INFO if not settings.DEBUG else logging.DEBUG)
@@ -35,6 +40,8 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(roof_api.router)
+app.include_router(zone_api.router)
+app.include_router(lease_api.router)
 
 
 # ---------------------------------------------------------------------------
