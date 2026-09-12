@@ -9,6 +9,6 @@ backend/.env
 scanned_zones_cache.json
 Start_VyomAcre.bat
 .bat
-devdoot-data*.json
-*service-account*.json
+vyomacre_backup.db
+vyomacre.db
 *.db
