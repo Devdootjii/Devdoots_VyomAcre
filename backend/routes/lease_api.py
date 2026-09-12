@@ -25,7 +25,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import LeaseRequest, LeaseStatusEnum, RoofListing
+from models import LeaseRequest, LeaseStatusEnum, RoofListing, RoofStatusEnum
 from schemas import LeaseRequestCreate, LeaseRequestOut, LeaseRequestStatusUpdate
 from utils.response_helper import error_response, success_response
 
@@ -120,7 +120,14 @@ def update_lease_request_status(
     payload: LeaseRequestStatusUpdate,
     db: Session = Depends(get_db),
 ):
-    """Owner accepts or rejects a pending lease request."""
+    """
+    Owner accepts or rejects a pending lease request.
+
+    Fix 7 (Divyansh's fix list): accepting a request now also marks the
+    underlying roof's admin `status` as "leased" — previously the lease
+    request itself changed status but the roof stayed "pending" forever,
+    so there was no visible outcome of accepting a request.
+    """
     try:
         lease_request = db.query(LeaseRequest).filter(LeaseRequest.id == lease_request_id).first()
 
@@ -132,6 +139,12 @@ def update_lease_request_status(
             )
 
         lease_request.status = LeaseStatusEnum(payload.status.value)
+
+        if lease_request.status == LeaseStatusEnum.accepted:
+            roof = db.query(RoofListing).filter(RoofListing.id == lease_request.roof_id).first()
+            if roof is not None:
+                roof.status = RoofStatusEnum.leased
+
         db.commit()
         db.refresh(lease_request)
 
