@@ -9,7 +9,7 @@ export default function OwnerForm({ onSubmitSuccess }) {
     phone_number: '',
     property_type: 'roof',
     area_sqft: '',
-    roof_type: 'concrete',
+    roof_type: 'flat',
     latitude: 26.8467,
     longitude: 80.9462,
     photos: []
@@ -17,6 +17,7 @@ export default function OwnerForm({ onSubmitSuccess }) {
 
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const estimatedIncome = formData.area_sqft
     ? Number(formData.area_sqft) * 15
@@ -29,8 +30,10 @@ export default function OwnerForm({ onSubmitSuccess }) {
     }));
 
     setErrorMsg('');
+    setSuccessMsg('');
   };
 
+  // STEP 1 VALIDATION
   const validateStep1 = () => {
     if (!formData.owner_name.trim()) {
       setErrorMsg('Owner name is required.');
@@ -45,14 +48,67 @@ export default function OwnerForm({ onSubmitSuccess }) {
     return true;
   };
 
+  // STEP 2 VALIDATION
   const validateStep2 = () => {
     if (!formData.area_sqft || Number(formData.area_sqft) <= 0) {
       setErrorMsg('Property area must be greater than 0.');
       return false;
     }
 
+    const latitude = Number(formData.latitude);
+    const longitude = Number(formData.longitude);
+
+    if (
+      !Number.isFinite(latitude) ||
+      latitude < -90 ||
+      latitude > 90
+    ) {
+      setErrorMsg('Latitude must be between -90 and 90.');
+      return false;
+    }
+
+    if (
+      !Number.isFinite(longitude) ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      setErrorMsg('Longitude must be between -180 and 180.');
+      return false;
+    }
+
+    // Backend accepts these exact lowercase roof_type values
+    if (
+      formData.property_type === 'roof' &&
+      !['flat', 'sloped', 'tin', 'concrete', 'other'].includes(
+        formData.roof_type
+      )
+    ) {
+      setErrorMsg('Please select a valid roof type.');
+      return false;
+    }
+
     return true;
   };
+
+  const isStep1Valid =
+    formData.owner_name.trim() &&
+    /^\d{10}$/.test(formData.phone_number);
+
+  const isStep2Valid =
+    formData.area_sqft &&
+    Number(formData.area_sqft) > 0 &&
+    Number.isFinite(Number(formData.latitude)) &&
+    Number(formData.latitude) >= -90 &&
+    Number(formData.latitude) <= 90 &&
+    Number.isFinite(Number(formData.longitude)) &&
+    Number(formData.longitude) >= -180 &&
+    Number(formData.longitude) <= 180 &&
+    (
+      formData.property_type !== 'roof' ||
+      ['flat', 'sloped', 'tin', 'concrete', 'other'].includes(
+        formData.roof_type
+      )
+    );
 
   const handleNext = () => {
     setErrorMsg('');
@@ -70,11 +126,13 @@ export default function OwnerForm({ onSubmitSuccess }) {
 
   const handleBack = () => {
     setErrorMsg('');
+    setSuccessMsg('');
     setStep((previous) => previous - 1);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setErrorMsg('');
     setSuccessMsg('');
 
@@ -85,38 +143,49 @@ export default function OwnerForm({ onSubmitSuccess }) {
     const submittedData = {
       ...formData,
       area_sqft: Number(formData.area_sqft),
-      status: 'Pending',
+      latitude: Number(formData.latitude),
+      longitude: Number(formData.longitude)
     };
+
+    setIsSubmitting(true);
 
     try {
       await submitRoofDetails(submittedData);
-    } catch (apiError) {
-      console.warn(
-        'Backend submission failed, saving locally:',
-        apiError
+
+      // Update App.jsx only after successful backend response
+      onSubmitSuccess?.({
+        ...submittedData,
+        status: 'Pending'
+      });
+
+      setSuccessMsg(
+        'Property submitted successfully! Status: Pending Verification.'
       );
+
+      // Reset form
+      setFormData({
+        owner_name: '',
+        phone_number: '',
+        property_type: 'roof',
+        area_sqft: '',
+        roof_type: 'flat',
+        latitude: 26.8467,
+        longitude: 80.9462,
+        photos: []
+      });
+
+      setStep(1);
+    } catch (apiError) {
+      console.error('Roof submission failed:', apiError);
+
+      setErrorMsg(
+        apiError?.response?.data?.detail ||
+        apiError?.response?.data?.message ||
+        'Unable to submit property. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Send submitted data to App.jsx
-    onSubmitSuccess?.(submittedData);
-
-    setSuccessMsg(
-      'Property submitted successfully! Status: Pending Verification.'
-    );
-
-    // Reset form
-    setFormData({
-      owner_name: '',
-      phone_number: '',
-      property_type: 'roof',
-      area_sqft: '',
-      roof_type: 'concrete',
-      latitude: 26.8467,
-      longitude: 80.9462,
-      photos: []
-    });
-
-    setStep(1);
   };
 
   return (
@@ -169,14 +238,14 @@ export default function OwnerForm({ onSubmitSuccess }) {
 
       </div>
 
-      {/* Error */}
+      {/* Error Message */}
       {errorMsg && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
           {errorMsg}
         </div>
       )}
 
-      {/* Success */}
+      {/* Success Message */}
       {successMsg && (
         <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
           {successMsg}
@@ -185,7 +254,7 @@ export default function OwnerForm({ onSubmitSuccess }) {
 
       <form onSubmit={handleSubmit}>
 
-        {/* STEP 1 */}
+        {/* ================= STEP 1 ================= */}
         {step === 1 && (
           <div className="space-y-5">
 
@@ -212,6 +281,7 @@ export default function OwnerForm({ onSubmitSuccess }) {
 
               <input
                 type="tel"
+                inputMode="numeric"
                 placeholder="10 digit phone number"
                 maxLength="10"
                 value={formData.phone_number}
@@ -228,7 +298,11 @@ export default function OwnerForm({ onSubmitSuccess }) {
             <button
               type="button"
               onClick={handleNext}
-              className="w-full rounded-xl bg-sky-500 py-3 font-bold text-white transition hover:bg-sky-600"
+              disabled={!isStep1Valid}
+              className={`w-full rounded-xl py-3 font-bold text-white transition ${isStep1Valid
+                  ? 'bg-sky-500 hover:bg-sky-600'
+                  : 'cursor-not-allowed bg-slate-300'
+                }`}
             >
               Continue to Property Details →
             </button>
@@ -236,7 +310,7 @@ export default function OwnerForm({ onSubmitSuccess }) {
           </div>
         )}
 
-        {/* STEP 2 */}
+        {/* ================= STEP 2 ================= */}
         {step === 2 && (
           <div className="space-y-5">
 
@@ -274,6 +348,7 @@ export default function OwnerForm({ onSubmitSuccess }) {
               />
             </div>
 
+            {/* Roof Type */}
             {formData.property_type === 'roof' && (
               <div>
                 <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -287,14 +362,54 @@ export default function OwnerForm({ onSubmitSuccess }) {
                   }
                   className="w-full rounded-xl border border-slate-300 p-3 text-slate-700 outline-none focus:border-sky-500"
                 >
-                  <option value="concrete">Concrete</option>
                   <option value="flat">Flat</option>
                   <option value="sloped">Sloped</option>
                   <option value="tin">Tin</option>
+                  <option value="concrete">Concrete</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
             )}
 
+            {/* Latitude */}
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                Latitude
+              </label>
+
+              <input
+                type="number"
+                step="any"
+                min="-90"
+                max="90"
+                value={formData.latitude}
+                onChange={(e) =>
+                  updateField('latitude', e.target.value)
+                }
+                className="w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-sky-500"
+              />
+            </div>
+
+            {/* Longitude */}
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-700">
+                Longitude
+              </label>
+
+              <input
+                type="number"
+                step="any"
+                min="-180"
+                max="180"
+                value={formData.longitude}
+                onChange={(e) =>
+                  updateField('longitude', e.target.value)
+                }
+                className="w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-sky-500"
+              />
+            </div>
+
+            {/* Estimated Income */}
             {formData.property_type === 'roof' && (
               <div className="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-800">
                 Estimated Monthly Earnings: ₹
@@ -315,7 +430,11 @@ export default function OwnerForm({ onSubmitSuccess }) {
               <button
                 type="button"
                 onClick={handleNext}
-                className="w-2/3 rounded-xl bg-sky-500 py-3 font-bold text-white transition hover:bg-sky-600"
+                disabled={!isStep2Valid}
+                className={`w-2/3 rounded-xl py-3 font-bold text-white transition ${isStep2Valid
+                    ? 'bg-sky-500 hover:bg-sky-600'
+                    : 'cursor-not-allowed bg-slate-300'
+                  }`}
               >
                 Review Details →
               </button>
@@ -325,10 +444,11 @@ export default function OwnerForm({ onSubmitSuccess }) {
           </div>
         )}
 
-        {/* STEP 3 */}
+        {/* ================= STEP 3 ================= */}
         {step === 3 && (
           <div className="space-y-6">
 
+            {/* Owner Review */}
             <div className="rounded-2xl bg-slate-50 p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Owner
@@ -343,6 +463,7 @@ export default function OwnerForm({ onSubmitSuccess }) {
               </p>
             </div>
 
+            {/* Property Review */}
             <div className="rounded-2xl bg-slate-50 p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Property
@@ -367,9 +488,20 @@ export default function OwnerForm({ onSubmitSuccess }) {
                   </p>
                 )}
 
+                <p>
+                  <span className="font-bold">Latitude:</span>{' '}
+                  {formData.latitude}
+                </p>
+
+                <p>
+                  <span className="font-bold">Longitude:</span>{' '}
+                  {formData.longitude}
+                </p>
+
               </div>
             </div>
 
+            {/* Ready Message */}
             <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5">
               <p className="text-sm font-bold text-sky-700">
                 Ready to Submit
@@ -380,21 +512,29 @@ export default function OwnerForm({ onSubmitSuccess }) {
               </p>
             </div>
 
+            {/* Buttons */}
             <div className="flex gap-3">
 
               <button
                 type="button"
                 onClick={handleBack}
-                className="w-1/3 rounded-xl border border-slate-300 py-3 font-bold text-slate-700 transition hover:bg-slate-100"
+                disabled={isSubmitting}
+                className="w-1/3 rounded-xl border border-slate-300 py-3 font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 ← Back
               </button>
 
               <button
                 type="submit"
-                className="w-2/3 rounded-xl bg-emerald-500 py-3 font-bold text-white transition hover:bg-emerald-600"
+                disabled={isSubmitting}
+                className={`w-2/3 rounded-xl py-3 font-bold text-white transition ${isSubmitting
+                    ? 'cursor-not-allowed bg-slate-400'
+                    : 'bg-emerald-500 hover:bg-emerald-600'
+                  }`}
               >
-                Submit Property
+                {isSubmitting
+                  ? 'Submitting...'
+                  : 'Submit Property'}
               </button>
 
             </div>
