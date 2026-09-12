@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import RoofListing, RoofStatusEnum, VerificationStatusEnum
-from schemas import RoofListingCreate, RoofListingOut
+from schemas import RoofListingCreate, RoofListingOut, RoofStatusUpdate
 from services.verification_service import run_area_verification
 from utils.response_helper import error_response, success_response
 
@@ -262,6 +262,52 @@ def get_roof_listing_by_id(roof_id: uuid.UUID, db: Session = Depends(get_db)):
         logger.exception("Database error while fetching roof listing %s", roof_id)
         return error_response(
             message="Failed to fetch the roof listing due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.patch("/{roof_id}/status")
+def update_roof_status(roof_id: uuid.UUID, payload: RoofStatusUpdate, db: Session = Depends(get_db)):
+    """
+    Fix 6 (Divyansh's fix list) — admin approve/reject.
+
+    Completes the 3-step flow: GEE auto-verification (Day 4) -> admin
+    approval (here) -> only then does the roof show up for companies via
+    GET /api/roofs/verified (which already filters on verification_status,
+    independent of this admin `status` field — a roof can be GEE-verified
+    but still pending admin sign-off, or vice versa).
+
+    Only "approved" / "rejected" are accepted here (RoofStatusUpdatable) —
+    "pending" is the automatic starting state and "leased" is set
+    automatically when a lease request is accepted (Fix 7,
+    routes/lease_api.py), never directly through this endpoint.
+    """
+    try:
+        roof = db.query(RoofListing).filter(RoofListing.id == roof_id).first()
+
+        if roof is None:
+            return error_response(
+                message="Roof listing not found.",
+                code=404,
+                error_details={"roof_id": str(roof_id)},
+            )
+
+        roof.status = RoofStatusEnum(payload.status.value)
+        db.commit()
+        db.refresh(roof)
+
+        return success_response(
+            message=f"Roof status updated to '{payload.status.value}'.",
+            data=RoofListingOut.model_validate(roof),
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        db.rollback()
+        logger.exception("Database error while updating roof status for %s", roof_id)
+        return error_response(
+            message="Failed to update roof status due to a database error.",
             code=500,
             error_details={"reason": str(db_err.__class__.__name__)},
         )

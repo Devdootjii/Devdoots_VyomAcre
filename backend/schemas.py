@@ -95,6 +95,24 @@ class RoofListingOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RoofStatusUpdatable(str, Enum):
+    """
+    Fix 6 (Divyansh's fix list) — restricted subset for
+    PATCH /api/roofs/{roof_id}/status. Admin can only move a roof to
+    approved or rejected here; "pending" is the automatic starting state
+    and "leased" is set automatically when a lease request is accepted
+    (Fix 7) — neither should be settable directly through this endpoint.
+    """
+    approved = "approved"
+    rejected = "rejected"
+
+
+class RoofStatusUpdate(BaseModel):
+    """Payload for PATCH /api/roofs/{roof_id}/status"""
+
+    status: RoofStatusUpdatable = Field(..., examples=["approved"])
+
+
 # ---------------------------------------------------------------------------
 # Lease requests — Day 9 (Company -> Owner)
 # ---------------------------------------------------------------------------
