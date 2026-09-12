@@ -109,13 +109,21 @@ def get_roof_listings(
         default=None,
         description="Optional roof type filter, e.g. ?roof_type=flat",
     ),
+    owner_id: Optional[str] = Query(
+        default=None,
+        description=(
+            "Optional owner filter (Day 9 API contract), e.g. ?owner_id=9876543210. "
+            "Same lookup as GET /api/roofs/owner/{phone_number} — owners are "
+            "identified by phone_number, there's no separate Owner table yet."
+        ),
+    ),
     db: Session = Depends(get_db),
 ):
     """
     Fetch roof listings, with optional filters (Day 3 base + Day 5-7
     additions for Ritesh's Company Marketplace filters — Min Area,
-    Property Type — and verification-status filtering so only
-    GEE-verified pins can be shown on the map if desired).
+    Property Type — Day 9's owner_id filter, and verification-status
+    filtering so only GEE-verified pins can be shown on the map if desired).
 
     Always returns through the standardized `success_response` wrapper,
     even when the result set is empty — an empty list is not an error.
@@ -134,6 +142,9 @@ def get_roof_listings(
 
         if roof_type is not None:
             query = query.filter(RoofListing.roof_type == roof_type)
+
+        if owner_id is not None:
+            query = query.filter(RoofListing.phone_number == owner_id)
 
         roofs = query.order_by(RoofListing.created_at.desc()).all()
 
@@ -185,6 +196,40 @@ def get_roofs_by_owner(phone_number: str, db: Session = Depends(get_db)):
         logger.exception("Database error while fetching owner's roof listings")
         return error_response(
             message="Failed to fetch listings due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.get("/verified")
+def get_verified_roof_listings(db: Session = Depends(get_db)):
+    """
+    Day 9 convenience endpoint — same data as GET /api/roofs?verification=verified,
+    but as its own path since Ritesh's MapDashboard.jsx spec (Day 9) names
+    GET /api/roofs/verified directly.
+
+    Must be registered before GET /{roof_id} below — otherwise FastAPI
+    would try to parse "verified" as a UUID path param and 422 instead of
+    matching this route.
+    """
+    try:
+        roofs = (
+            db.query(RoofListing)
+            .filter(RoofListing.verification_status == VerificationStatusEnum.verified.value)
+            .order_by(RoofListing.created_at.desc())
+            .all()
+        )
+
+        return success_response(
+            message=f"Fetched {len(roofs)} verified listing(s).",
+            data=[RoofListingOut.model_validate(roof) for roof in roofs],
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        logger.exception("Database error while fetching verified roof listings")
+        return error_response(
+            message="Failed to fetch verified roof listings due to a database error.",
             code=500,
             error_details={"reason": str(db_err.__class__.__name__)},
         )

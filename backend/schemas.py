@@ -39,6 +39,22 @@ class VerificationStatus(str, Enum):
     verification_failed = "verification_failed"
 
 
+class LeaseStatus(str, Enum):
+    """Day 9 — lifecycle of a company's lease request for a roof."""
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+
+
+class LeaseStatusUpdate(str, Enum):
+    """
+    Restricted subset for PATCH /api/lease-requests/{id} — an owner can only
+    move a request to accepted or rejected, never back to pending.
+    """
+    accepted = "accepted"
+    rejected = "rejected"
+
+
 # ---------------------------------------------------------------------------
 # Roof onboarding — request / response contract
 # ---------------------------------------------------------------------------
@@ -77,6 +93,53 @@ class RoofListingOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Lease requests — Day 9 (Company -> Owner)
+# ---------------------------------------------------------------------------
+
+class LeaseRequestCreate(BaseModel):
+    """Payload for POST /api/lease-requests"""
+
+    roof_id: uuid.UUID = Field(..., examples=["5ff2ef80-2384-4fb7-a5bd-0da3fe5a56b2"])
+    company_name: str = Field(..., min_length=2, max_length=150, examples=["SolarCorp"])
+
+
+class LeaseRequestStatusUpdate(BaseModel):
+    """Payload for PATCH /api/lease-requests/{id}"""
+
+    status: LeaseStatusUpdate = Field(..., examples=["accepted"])
+
+
+class LeaseRequestOut(BaseModel):
+    id: uuid.UUID
+    roof_id: uuid.UUID
+    company_name: str
+    status: LeaseStatus
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Scanned zones — Day 8 (Admin Radar Map)
+# ---------------------------------------------------------------------------
+
+class ScannedZoneOut(BaseModel):
+    """
+    Shape matches the Day 8 API contract for GET /api/zones/scanned:
+    grid_id, status, bounding box (north/south/east/west), scanned_at.
+    """
+
+    grid_id: str
+    status: str
+    north: float
+    south: float
+    east: float
+    west: float
+    gee_estimated_area_sqft: Optional[float] = None
+    scanned_at: datetime
 
 
 # ---------------------------------------------------------------------------
