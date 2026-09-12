@@ -72,11 +72,9 @@ export default function App() {
   const [ownerData, setOwnerData] = useState(() => {
     try {
       const savedOwnerData = localStorage.getItem('vyomacre_owner_data');
-
       if (savedOwnerData) {
         return JSON.parse(savedOwnerData);
       }
-
       return null;
     } catch (error) {
       console.error('Failed to load owner data from localStorage:', error);
@@ -86,10 +84,7 @@ export default function App() {
 
   useEffect(() => {
     if (ownerData) {
-      localStorage.setItem(
-        'vyomacre_owner_data',
-        JSON.stringify(ownerData)
-      );
+      localStorage.setItem('vyomacre_owner_data', JSON.stringify(ownerData));
     }
   }, [ownerData]);
 
@@ -103,15 +98,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950">
       <LandingPage />
-
-      <main className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        <OwnerForm
-          onSubmitSuccess={handleOwnerSubmitSuccess}
-        />
-
+      <main className="grid grid-cols-1 gap-8 md:grid-cols-2 p-4">
+        <OwnerForm onSubmitSuccess={handleOwnerSubmitSuccess} />
         <MapDashboard />
       </main>
-
       <OwnerStatusDashboard ownerData={ownerData} />
     </div>
   );

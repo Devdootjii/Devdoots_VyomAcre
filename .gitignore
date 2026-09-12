@@ -3,12 +3,20 @@ __pycache__/
 .env
 .venv
 *.pyc
-# Environment Variables
+
+# Environment Variables & Secrets
 .env
 backend/.env
+engine/.env
+*.env
+devdoot-data-*.json
+*.json.key
+
+# Cache & DB
 scanned_zones_cache.json
 Start_VyomAcre.bat
 .bat
 vyomacre_backup.db
 vyomacre.db
 *.db
+backend/*.db

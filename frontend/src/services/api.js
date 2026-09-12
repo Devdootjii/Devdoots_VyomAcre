@@ -1,20 +1,36 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://devdoots-vyomacre-7.onrender.com';
+const API_BASE_URL = 'http://localhost:8000';
 
-const apiClient = axios.create({
+const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Contract A: Roof Owner Onboarding (Aryan)
 export const submitRoofDetails = async (roofData) => {
-  return await apiClient.post('/api/roofs/add', roofData);
+  return await api.post('/api/roofs/add', roofData);
 };
 
-// Contract C: Balram's Day 3 Verified Endpoint (Ritesh)
-export const getAllRoofs = async () => {
-  return await apiClient.get('/api/roofs');
+export const getOwnerRoofs = async (phoneNumber) => {
+  return await api.get(`/api/roofs?owner_id=${phoneNumber}`);
 };
+
+export const getAllRoofs = async (params = {}) => {
+  return await api.get('/api/roofs', { params });
+};
+
+export const getVerifiedRoofs = async () => {
+  return await api.get('/api/roofs/verified');
+};
+
+export const getScannedZones = async () => {
+  return await api.get('/api/zones/scanned');
+};
+
+export const createLeaseRequest = async (payload) => {
+  return await api.post('/api/lease-requests', payload);
+};
+
+export default api;
