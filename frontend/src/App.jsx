@@ -55,7 +55,7 @@ export default function App() {
             element={<VyomLanding />}
           />
 
-          {/* Owner Registration Portal */}
+          {/* Registration / Owner Portal */}
           <Route
             path="/register"
             element={
@@ -93,7 +93,7 @@ export default function App() {
             }
           />
 
-          {/* Legacy / Backup Layout */}
+          {/* Legacy / Backup View */}
           <Route
             path="/legacy"
             element={
