@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-// Team's premium components
 import Navbar from './components/Navbar';
 import VyomLanding from './components/VyomLanding';
-
-// Existing team components
 import LandingPage from './components/LandingPage';
 import OwnerForm from './components/OwnerForm';
 import MapDashboard from './components/MapDashboard';
@@ -22,7 +19,10 @@ export default function App() {
 
       return null;
     } catch (error) {
-      console.error('Failed to load owner data from localStorage:', error);
+      console.error(
+        'Failed to load owner data from localStorage:',
+        error
+      );
       return null;
     }
   });
@@ -46,12 +46,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-slate-950 font-sans">
-
-        {/* Team Navbar */}
         <Navbar />
 
         <Routes>
-
           {/* Home */}
           <Route
             path="/"
@@ -64,7 +61,6 @@ export default function App() {
             element={
               <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-6">
                 <div className="max-w-3xl mx-auto flex flex-col gap-8">
-
                   <h2 className="text-3xl font-extrabold text-slate-800 text-center">
                     Registration Portal
                   </h2>
@@ -76,7 +72,6 @@ export default function App() {
                   <OwnerStatusDashboard
                     ownerData={ownerData}
                   />
-
                 </div>
               </div>
             }
@@ -88,13 +83,11 @@ export default function App() {
             element={
               <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-6">
                 <div className="max-w-7xl mx-auto">
-
                   <h2 className="text-3xl font-extrabold text-slate-800 mb-8 text-center">
                     Company Marketplace
                   </h2>
 
                   <MapDashboard />
-
                 </div>
               </div>
             }
@@ -105,11 +98,9 @@ export default function App() {
             path="/legacy"
             element={
               <div className="pt-24 min-h-screen bg-slate-100">
-
                 <LandingPage />
 
                 <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
-
                   <section
                     id="owner-form"
                     className="flex flex-col gap-8"
@@ -124,9 +115,7 @@ export default function App() {
                   </section>
 
                   <MapDashboard />
-
                 </main>
-
               </div>
             }
           />
@@ -150,9 +139,7 @@ export default function App() {
               </div>
             }
           />
-
         </Routes>
-
       </div>
     </BrowserRouter>
   );
