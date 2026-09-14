@@ -1,41 +1,146 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+import Navbar from './components/Navbar';
+import VyomLanding from './components/VyomLanding';
 import LandingPage from './components/LandingPage';
 import OwnerForm from './components/OwnerForm';
-import RoofListingForm from './components/RoofListingForm'; // 👈 Tumhara naya import yahan hai
 import MapDashboard from './components/MapDashboard';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 
 export default function App() {
+  const [ownerData, setOwnerData] = useState(() => {
+    try {
+      const savedOwnerData = localStorage.getItem('vyomacre_owner_data');
+
+      if (savedOwnerData) {
+        return JSON.parse(savedOwnerData);
+      }
+
+      return null;
+    } catch (error) {
+      console.error(
+        'Failed to load owner data from localStorage:',
+        error
+      );
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (ownerData) {
+      localStorage.setItem(
+        'vyomacre_owner_data',
+        JSON.stringify(ownerData)
+      );
+    }
+  }, [ownerData]);
+
+  const handleOwnerSubmitSuccess = (submittedData) => {
+    setOwnerData({
+      ...submittedData,
+      status: 'Pending',
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-slate-100">
+    <BrowserRouter>
+      <div className="min-h-screen bg-slate-950 font-sans">
+        <Navbar />
 
-      {/* Day 4 Landing Page */}
-      <LandingPage />
+        <Routes>
+          {/* Home */}
+          <Route
+            path="/"
+            element={<VyomLanding />}
+          />
 
-      {/* Existing Owner Form + Map */}
-      <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
+          {/* Registration / Owner Portal */}
+          <Route
+            path="/register"
+            element={
+              <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-6">
+                <div className="max-w-3xl mx-auto flex flex-col gap-8">
+                  <h2 className="text-3xl font-extrabold text-slate-800 text-center">
+                    Registration Portal
+                  </h2>
 
-        {/* 
-          Maine yahan className="flex flex-col gap-8" add kiya hai, 
-          taaki Ritesh aur tumhara form ek ke neeche ek perfectly align ho jaye. 
-        */}
-        <section id="owner-form" className="flex flex-col gap-8">
-          
-          {/* Ritesh ka form - Ekdum safe */}
-          <OwnerForm />
+                  <OwnerForm
+                    onSubmitSuccess={handleOwnerSubmitSuccess}
+                  />
 
-          {/* Tumhara naya form yahan add kar diya */}
-          <RoofListingForm />
+                  <OwnerStatusDashboard
+                    ownerData={ownerData}
+                  />
+                </div>
+              </div>
+            }
+          />
 
-        </section>
+          {/* Company Marketplace */}
+          <Route
+            path="/properties"
+            element={
+              <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-6">
+                <div className="max-w-7xl mx-auto">
+                  <h2 className="text-3xl font-extrabold text-slate-800 mb-8 text-center">
+                    Company Marketplace
+                  </h2>
 
-        <MapDashboard />
+                  <MapDashboard />
+                </div>
+              </div>
+            }
+          />
 
-      </main>
+          {/* Legacy / Backup View */}
+          <Route
+            path="/legacy"
+            element={
+              <div className="pt-24 min-h-screen bg-slate-100">
+                <LandingPage />
 
-      {/* Owner Status Dashboard */}
-      <OwnerStatusDashboard />
+                <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
+                  <section
+                    id="owner-form"
+                    className="flex flex-col gap-8"
+                  >
+                    <OwnerForm
+                      onSubmitSuccess={handleOwnerSubmitSuccess}
+                    />
 
-    </div>
+                    <OwnerStatusDashboard
+                      ownerData={ownerData}
+                    />
+                  </section>
+
+                  <MapDashboard />
+                </main>
+              </div>
+            }
+          />
+
+          {/* About */}
+          <Route
+            path="/about"
+            element={
+              <div className="pt-40 text-center text-3xl font-bold text-slate-400">
+                About VyomAcre Coming Soon...
+              </div>
+            }
+          />
+
+          {/* Help */}
+          <Route
+            path="/help"
+            element={
+              <div className="pt-40 text-center text-3xl font-bold text-slate-400">
+                Help Center Coming Soon...
+              </div>
+            }
+          />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import RoofListing, RoofStatusEnum, VerificationStatusEnum
-from schemas import RoofListingCreate, RoofListingOut
+from schemas import RoofListingCreate, RoofListingOut, RoofStatusUpdate
 from services.verification_service import run_area_verification
 from utils.response_helper import error_response, success_response
 
@@ -109,13 +109,21 @@ def get_roof_listings(
         default=None,
         description="Optional roof type filter, e.g. ?roof_type=flat",
     ),
+    owner_id: Optional[str] = Query(
+        default=None,
+        description=(
+            "Optional owner filter (Day 9 API contract), e.g. ?owner_id=9876543210. "
+            "Same lookup as GET /api/roofs/owner/{phone_number} — owners are "
+            "identified by phone_number, there's no separate Owner table yet."
+        ),
+    ),
     db: Session = Depends(get_db),
 ):
     """
     Fetch roof listings, with optional filters (Day 3 base + Day 5-7
     additions for Ritesh's Company Marketplace filters — Min Area,
-    Property Type — and verification-status filtering so only
-    GEE-verified pins can be shown on the map if desired).
+    Property Type — Day 9's owner_id filter, and verification-status
+    filtering so only GEE-verified pins can be shown on the map if desired).
 
     Always returns through the standardized `success_response` wrapper,
     even when the result set is empty — an empty list is not an error.
@@ -134,6 +142,9 @@ def get_roof_listings(
 
         if roof_type is not None:
             query = query.filter(RoofListing.roof_type == roof_type)
+
+        if owner_id is not None:
+            query = query.filter(RoofListing.phone_number == owner_id)
 
         roofs = query.order_by(RoofListing.created_at.desc()).all()
 
@@ -190,6 +201,40 @@ def get_roofs_by_owner(phone_number: str, db: Session = Depends(get_db)):
         )
 
 
+@router.get("/verified")
+def get_verified_roof_listings(db: Session = Depends(get_db)):
+    """
+    Day 9 convenience endpoint — same data as GET /api/roofs?verification=verified,
+    but as its own path since Ritesh's MapDashboard.jsx spec (Day 9) names
+    GET /api/roofs/verified directly.
+
+    Must be registered before GET /{roof_id} below — otherwise FastAPI
+    would try to parse "verified" as a UUID path param and 422 instead of
+    matching this route.
+    """
+    try:
+        roofs = (
+            db.query(RoofListing)
+            .filter(RoofListing.verification_status == VerificationStatusEnum.verified.value)
+            .order_by(RoofListing.created_at.desc())
+            .all()
+        )
+
+        return success_response(
+            message=f"Fetched {len(roofs)} verified listing(s).",
+            data=[RoofListingOut.model_validate(roof) for roof in roofs],
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        logger.exception("Database error while fetching verified roof listings")
+        return error_response(
+            message="Failed to fetch verified roof listings due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
 @router.get("/{roof_id}")
 def get_roof_listing_by_id(roof_id: uuid.UUID, db: Session = Depends(get_db)):
     """
@@ -217,6 +262,52 @@ def get_roof_listing_by_id(roof_id: uuid.UUID, db: Session = Depends(get_db)):
         logger.exception("Database error while fetching roof listing %s", roof_id)
         return error_response(
             message="Failed to fetch the roof listing due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.patch("/{roof_id}/status")
+def update_roof_status(roof_id: uuid.UUID, payload: RoofStatusUpdate, db: Session = Depends(get_db)):
+    """
+    Fix 6 (Divyansh's fix list) — admin approve/reject.
+
+    Completes the 3-step flow: GEE auto-verification (Day 4) -> admin
+    approval (here) -> only then does the roof show up for companies via
+    GET /api/roofs/verified (which already filters on verification_status,
+    independent of this admin `status` field — a roof can be GEE-verified
+    but still pending admin sign-off, or vice versa).
+
+    Only "approved" / "rejected" are accepted here (RoofStatusUpdatable) —
+    "pending" is the automatic starting state and "leased" is set
+    automatically when a lease request is accepted (Fix 7,
+    routes/lease_api.py), never directly through this endpoint.
+    """
+    try:
+        roof = db.query(RoofListing).filter(RoofListing.id == roof_id).first()
+
+        if roof is None:
+            return error_response(
+                message="Roof listing not found.",
+                code=404,
+                error_details={"roof_id": str(roof_id)},
+            )
+
+        roof.status = RoofStatusEnum(payload.status.value)
+        db.commit()
+        db.refresh(roof)
+
+        return success_response(
+            message=f"Roof status updated to '{payload.status.value}'.",
+            data=RoofListingOut.model_validate(roof),
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        db.rollback()
+        logger.exception("Database error while updating roof status for %s", roof_id)
+        return error_response(
+            message="Failed to update roof status due to a database error.",
             code=500,
             error_details={"reason": str(db_err.__class__.__name__)},
         )

@@ -11,11 +11,18 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Float, String, func
+from sqlalchemy import Float, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
+
+# Must match engine/scan_manager.GRID_SIZE_DEGREES — used here only to
+# compute each ScannedZone's north/south/east/west bounds for the Day 8
+# Admin Radar Map. Kept as a plain constant (not imported across the
+# backend/engine boundary) so this file has no runtime dependency on the
+# engine folder.
+GRID_SIZE_DEGREES = 0.01
 
 
 class RoofStatusEnum(str, enum.Enum):
@@ -89,6 +96,13 @@ class RoofListing(Base):
         server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+    __table_args__ = (
+        # Day 8/9 — speeds up map-viewport / bounding-box style lookups
+        # (e.g. "roofs near this area") until a real PostGIS geography
+        # column replaces plain lat/lon.
+        Index("ix_roof_listings_lat_lon", "latitude", "longitude"),
+    )
+
     def __repr__(self) -> str:
         return f"<RoofListing id={self.id} owner={self.owner_name} status={self.status}>"
 
@@ -137,5 +151,55 @@ class ScannedZone(Base):
         server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+    __table_args__ = (
+        Index("ix_scanned_zones_grid_lat_lon", "grid_lat", "grid_lon"),
+    )
+
     def __repr__(self) -> str:
         return f"<ScannedZone zone_key={self.zone_key} status={self.scan_status} requests={self.request_count}>"
+
+
+class LeaseStatusEnum(str, enum.Enum):
+    """Day 9 — lifecycle of a company's lease request for a roof."""
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+
+
+class LeaseRequest(Base):
+    """
+    Day 9 — Divyansh: a company's request to lease a specific roof.
+
+    One roof can receive lease requests from multiple companies; the owner
+    reviews each in their Inbox (Harsh's OwnerInbox.jsx) and accepts or
+    rejects it via PATCH /api/lease-requests/{id}.
+    """
+
+    __tablename__ = "lease_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+
+    roof_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("roof_listings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    company_name: Mapped[str] = mapped_column(String(150), nullable=False)
+
+    status: Mapped[LeaseStatusEnum] = mapped_column(
+        String(20),
+        nullable=False,
+        default=LeaseStatusEnum.pending,
+        server_default=LeaseStatusEnum.pending.value,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<LeaseRequest id={self.id} roof_id={self.roof_id} status={self.status}>"
