@@ -2,32 +2,42 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 export default function PreLoader({ onComplete }) {
-  // Yeh timer 2.5 seconds baad parent component ko batayega ki animation khatam ho gayi
+  // Existing lifecycle logic preserved: completes under 1.5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
-      onComplete();
-    }, 2500); 
+      if (onComplete) onComplete();
+    }, 1400); 
     return () => clearTimeout(timer);
   }, [onComplete]);
 
   return (
-    <motion.div
-      // Screen ko poora dark background se cover karega (z-50 sabse upar rakhne ke liye)
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950"
-      initial={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.8, ease: "easeInOut" } }}
-    >
+    <div className="flex flex-col items-center justify-center h-screen w-full bg-[#030712] text-white overflow-hidden selection:bg-cyan-500/30">
       <motion.div
-        // Logo chote se bada hoga aur fade-in hoga
-        initial={{ scale: 0.8, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: "easeOut" }}
-        className="flex items-center gap-3"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="relative flex items-center justify-center mb-6"
       >
-        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-white drop-shadow-lg">
-          Vyom<span className="text-cyan-400">Acre</span>
-        </h1>
+        {/* Subtle Brand Glow Behind Icon */}
+        <div className="absolute inset-0 bg-[#00FF87] blur-[40px] opacity-30 rounded-full"></div>
+        
+        {/* Central Glowing Element */}
+        <div className="relative h-16 w-16 bg-gradient-to-br from-[#00FF87] to-[#00B8FF] rounded-xl shadow-[0_0_25px_rgba(0,184,255,0.4)] flex items-center justify-center border border-white/20">
+          <svg className="w-8 h-8 text-[#030712]" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2L2 22h20L12 2z"/>
+          </svg>
+        </div>
       </motion.div>
-    </motion.div>
+
+      {/* Brand Text Fade-in */}
+      <motion.h1
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
+        className="text-4xl md:text-5xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#00FF87] to-[#00B8FF] drop-shadow-[0_0_10px_rgba(0,184,255,0.2)]"
+      >
+        VyomAcre
+      </motion.h1>
+    </div>
   );
 }
