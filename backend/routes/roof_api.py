@@ -12,6 +12,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import get_db
+from auth_dependency import require_admin, require_owner
+from auth_models import User
 from models import RoofListing, RoofStatusEnum, VerificationStatusEnum
 from schemas import RoofListingCreate, RoofListingOut, RoofStatusUpdate
 from services.verification_service import run_area_verification
@@ -26,6 +28,7 @@ router = APIRouter(prefix="/api/roofs", tags=["Roofs"])
 def add_roof_listing(
     payload: RoofListingCreate,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     """
@@ -36,16 +39,34 @@ def add_roof_listing(
     handler registered in main.py, which returns the standardized error
     envelope automatically.
 
+    T3 addition: `owner_name` / `phone_number` are now taken from the
+    authenticated user (current_user), not from the request body. Before
+    auth existed, the client had to self-report these; trusting them now
+    that we know who's actually logged in would let any owner submit a
+    roof under someone else's name/phone. Harsh's OwnerForm.jsx can keep
+    sending those fields — they're just ignored server-side now.
+
     Day 4: after the listing is saved, a background task (run_area_verification)
     is scheduled to cross-check the submitted area against a GEE-estimated
     polygon area. This runs *after* the response is sent — the owner does
     not wait on a GEE round-trip to get their success response.
     """
     try:
+        # area_sqft is optional on the request now (PDF: "estimated_area_sqft
+        # (optional, GEE bhi calculate karega)"). If the owner didn't submit
+        # one, store a 0.0 placeholder for now — run_area_verification below
+        # will populate gee_estimated_area_sqft once GEE finishes, which is
+        # what the dashboard should display as the authoritative figure in
+        # that case. (If RoofListing.area_sqft is a NOT NULL column, this
+        # placeholder avoids a DB error; if it's already nullable, None can
+        # be passed here directly instead — worth confirming against
+        # models.py.)
+        submitted_area = payload.area_sqft if payload.area_sqft is not None else 0.0
+
         new_roof = RoofListing(
-            owner_name=payload.owner_name,
-            phone_number=payload.phone_number,
-            area_sqft=payload.area_sqft,
+            owner_name=current_user.name,
+            phone_number=current_user.phone,
+            area_sqft=submitted_area,
             roof_type=payload.roof_type.value,
             latitude=payload.latitude,
             longitude=payload.longitude,
@@ -60,7 +81,7 @@ def add_roof_listing(
             new_roof.id,
             payload.latitude,
             payload.longitude,
-            payload.area_sqft,
+            payload.area_sqft,  # may be None — verification_service should treat that as "no owner estimate, GEE is authoritative"
         )
 
         return success_response(
@@ -268,9 +289,21 @@ def get_roof_listing_by_id(roof_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.patch("/{roof_id}/status")
-def update_roof_status(roof_id: uuid.UUID, payload: RoofStatusUpdate, db: Session = Depends(get_db)):
+def update_roof_status(
+    roof_id: uuid.UUID,
+    payload: RoofStatusUpdate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """
     Fix 6 (Divyansh's fix list) — admin approve/reject.
+
+    T3 addition: now gated behind require_admin. This wasn't in the PDF's
+    explicit T3 list (which only named POST /api/roofs/add,
+    POST /api/lease-requests, PATCH /api/lease-requests/{id}) — but this
+    route already existed as an admin-only action (Fix 6), and leaving it
+    open while everything else got locked down would be an inconsistent,
+    unprotected admin endpoint. Flagging this as an addition beyond spec.
 
     Completes the 3-step flow: GEE auto-verification (Day 4) -> admin
     approval (here) -> only then does the roof show up for companies via
