@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import VyomLanding from './components/VyomLanding';
 import LandingPage from './components/LandingPage';
 import OwnerForm from './components/OwnerForm';
+import OwnerInbox from './components/OwnerInbox';
 import MapDashboard from './components/MapDashboard';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 
@@ -55,7 +56,7 @@ export default function App() {
             element={<VyomLanding />}
           />
 
-          {/* Registration / Owner Portal */}
+          {/* Owner Registration */}
           <Route
             path="/register"
             element={
@@ -72,6 +73,18 @@ export default function App() {
                   <OwnerStatusDashboard
                     ownerData={ownerData}
                   />
+                </div>
+              </div>
+            }
+          />
+
+          {/* Owner Inbox */}
+          <Route
+            path="/owner-inbox"
+            element={
+              <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-4 sm:px-6 text-slate-900">
+                <div className="max-w-3xl mx-auto">
+                  <OwnerInbox />
                 </div>
               </div>
             }
