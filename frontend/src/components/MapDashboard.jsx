@@ -144,6 +144,7 @@ const MapDashboard = () => {
     }
 
     setLeaseSubmitting(roofId);
+
     try {
       const payload = {
         roof_id: String(roofId),
@@ -281,10 +282,10 @@ const MapDashboard = () => {
                   </Marker>
                 );
               }
+
               return null;
             })}
           </MapContainer>
-        </div>
 
         {/* Right Sidebar */}
         <div className="w-72 bg-slate-950 border-l border-slate-800 p-3 overflow-y-auto">
@@ -294,6 +295,7 @@ const MapDashboard = () => {
               Radar {radarActive ? 'ON' : 'OFF'}
             </button>
           </div>
+        </div>
 
           {errorMsg ? (
             <p className="text-xs text-red-400 text-center py-6 bg-red-900/20 rounded border border-red-900/50">{errorMsg}</p>

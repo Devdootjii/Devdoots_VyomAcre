@@ -1,5 +1,158 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { getOwnerRoofs } from '../services/api';
+import React from 'react';
+import { motion } from 'framer-motion';
+
+const reveal = {
+    hidden: {
+        opacity: 0,
+        y: 28,
+    },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: {
+            duration: 0.65,
+            ease: [0.22, 1, 0.36, 1],
+        },
+    },
+};
+
+const stagger = {
+    hidden: {},
+    visible: {
+        transition: {
+            staggerChildren: 0.08,
+        },
+    },
+};
+
+// Backticks aur brackets parser conflict se bachne ke liye string concatenation use kiya hai
+function AmbientGlow({ className = '' }) {
+    return (
+        <div
+            aria-hidden="true"
+            className={"pointer-events-none absolute rounded-full bg-emerald-500/10 blur-[120px] " + className}
+        />
+    );
+}
+
+function StatusBadge({ status }) {
+    const isPending = status === 'Pending';
+
+    return (
+        <span
+            className={
+                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] " +
+                (isPending
+                    ? "border-amber-400/20 bg-amber-400/[0.05] text-amber-300"
+                    : "border-[#00FF87]/20 bg-[#00FF87]/[0.05] text-[#00FF87]")
+            }
+        >
+            <span
+                className={
+                    "h-1.5 w-1.5 rounded-full " +
+                    (isPending
+                        ? "bg-amber-300"
+                        : "bg-[#00FF87] shadow-[0_0_8px_rgba(0,255,135,0.75)]")
+                }
+            />
+            {status === 'Pending' ? 'Under Review' : status}
+        </span>
+    );
+}
+
+function DashboardStat({ label, value, status = false, border = true }) {
+    return (
+        <div
+            className={
+                (border ? 'border-b border-white/10 pb-6 md:border-b-0 md:border-r md:pb-0 ' : '') +
+                'md:last:border-r-0'
+            }
+        >
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-600">
+                {label}
+            </p>
+
+            {status ? (
+                <div className="mt-3">
+                    <StatusBadge status={value} />
+                </div>
+            ) : (
+                <p className="mt-3 text-2xl font-medium tracking-[-0.045em] text-white">
+                    {value}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function VerificationStep({
+    title,
+    description,
+    state,
+    lineActive,
+    lineCurrent,
+}) {
+    const completed = state === 'completed';
+    const current = state === 'current';
+
+    return (
+        <div className="relative">
+            <div
+                className={
+                    "mb-5 h-1 rounded-full transition-all duration-500 " +
+                    (completed
+                        ? 'bg-[#00FF87] shadow-[0_0_10px_rgba(0,255,135,0.22)]'
+                        : current
+                            ? 'bg-gradient-to-r from-[#00FF87] to-[#00B8FF] shadow-[0_0_10px_rgba(0,255,135,0.16)]'
+                            : 'bg-white/10')
+                }
+            />
+
+            <div className="flex items-center gap-3">
+                <span
+                    className={
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border font-mono text-[9px] " +
+                        (completed
+                            ? 'border-[#00FF87]/25 bg-[#00FF87]/[0.08] text-[#00FF87]'
+                            : current
+                                ? 'border-[#00FF87]/30 bg-[#00FF87]/[0.06] text-[#00FF87]'
+                                : 'border-white/10 bg-white/[0.025] text-slate-600')
+                    }
+                >
+                    {completed ? '✓' : current ? '•' : '—'}
+                </span>
+
+                <div>
+                    <p
+                        className={
+                            "text-lg font-medium tracking-[-0.03em] " +
+                            (completed || current ? 'text-white' : 'text-slate-500')
+                        }
+                    >
+                        {title}
+                    </p>
+                </div>
+            </div>
+
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+                {description}
+            </p>
+
+            <p
+                className={
+                    "mt-4 text-[9px] font-semibold uppercase tracking-[0.16em] " +
+                    (completed
+                        ? 'text-[#00FF87]'
+                        : current
+                            ? 'text-[#00FF87]/75'
+                            : 'text-slate-700')
+                }
+            >
+                {completed ? 'Completed' : current ? 'In Progress' : 'Waiting'}
+            </p>
+        </div>
+    );
+}
 
 export default function OwnerStatusDashboard({ ownerData }) {
     const [roofs, setRoofs] = useState([]);
@@ -97,179 +250,247 @@ export default function OwnerStatusDashboard({ ownerData }) {
     return (
         <section
             id="owner-status"
-            className="relative overflow-hidden bg-slate-950 px-6 py-20 text-white lg:px-8"
+            className="relative overflow-hidden bg-[#020706] px-5 py-20 text-white sm:px-6 lg:px-8"
         >
-            <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-sky-500/10 blur-3xl" />
-            <div className="pointer-events-none absolute -right-40 bottom-10 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+            {/* Background Glows */}
+            <AmbientGlow className="-left-40 top-20 h-96 w-96" />
+            <AmbientGlow className="-right-40 bottom-10 h-96 w-96" />
+
+            {/* Subtle Grid */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-[0.025]"
+                style={{
+                    backgroundImage: `
+                        linear-gradient(rgba(148,163,184,0.2) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(148,163,184,0.2) 1px, transparent 1px)
+                    `,
+                    backgroundSize: '64px 64px',
+                }}
+            />
 
             <div className="relative mx-auto max-w-7xl">
-                <div className="mb-10">
-                    <p className="mb-3 text-sm font-bold uppercase tracking-[0.25em] text-sky-400">
+                {/* Header */}
+                <motion.div
+                    variants={reveal}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: '-100px' }}
+                    className="mb-10"
+                >
+                    <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-[#00FF87]">
                         Owner Dashboard
                     </p>
 
-                    <h2 className="text-4xl font-black tracking-tight sm:text-5xl">
-                        Property Verification Status
+                    <h2 className="text-4xl font-medium tracking-[-0.05em] sm:text-5xl">
+                        {hasSubmission
+                            ? 'Property Verification Status'
+                            : 'Track Your Property'}
                     </h2>
 
-                    <p className="mt-4 max-w-2xl text-lg text-slate-400">
-                        Track the live verification status of your submitted properties.
+                    <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
+                        {hasSubmission
+                            ? 'Check the current verification status of your submitted property.'
+                            : 'Submit your property details to start the verification process.'}
                     </p>
-                </div>
+                </motion.div>
 
-                {!phoneNumber && (
-                    <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-6">
-                        <p className="text-lg font-bold text-amber-300">
-                            No owner phone number found
-                        </p>
-                        <p className="mt-2 text-sm text-slate-400">
-                            Please submit your property details first.
+                {/* Owner Information Card */}
+                <motion.div
+                    variants={reveal}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: '-100px' }}
+                    className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] p-6 shadow-[0_25px_70px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-8"
+                >
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-[#00FF87]/[0.025] blur-[70px]"
+                    />
+
+                    <div className="relative grid gap-7 md:grid-cols-4 md:gap-0">
+                        <div className="md:pr-8">
+                            <DashboardStat
+                                label="Owner Name"
+                                value={ownerName}
+                                border
+                            />
+                        </div>
+
+                        <div className="md:border-b-0 md:pr-8 md:pl-8">
+                            <DashboardStat
+                                label="Property Type"
+                                value={propertyType}
+                                border
+                            />
+                        </div>
+
+                        <div className="md:pr-8 md:pl-8">
+                            <DashboardStat
+                                label={propertyLabel}
+                                value={
+                                    area > 0
+                                        ? `${area} sq ft`
+                                        : 'Not submitted'
+                                }
+                                border
+                            />
+                        </div>
+
+                        <div className="md:pl-8">
+                            <DashboardStat
+                                label="Verification Status"
+                                value={status}
+                                status
+                                border={false}
+                            />
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Verification Progress */}
+                <motion.div
+                    variants={reveal}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: '-100px' }}
+                    className="relative mt-5 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] p-6 shadow-[0_25px_70px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:mt-8 sm:p-8"
+                >
+                    <AmbientGlow className="right-[-10%] top-[30%] h-56 w-56" />
+
+                    <div className="relative flex flex-wrap items-end justify-between gap-5">
+                        <div>
+                            <p className="text-2xl font-medium tracking-[-0.04em] text-white">
+                                Verification Progress
+                            </p>
+
+                            <p className="mt-2 text-sm text-slate-500">
+                                {hasSubmission
+                                    ? 'Your property verification is currently in progress.'
+                                    : 'Verification will begin after property submission.'}
+                            </p>
+                        </div>
+
+                        <p className="font-mono text-3xl tracking-[-0.04em] text-[#00FF87] sm:text-4xl">
+                            {hasSubmission ? '50%' : '0%'}
                         </p>
                     </div>
-                )}
 
-                {loading && (
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6">
-                        <p className="text-sky-400">
-                            Loading your properties...
-                        </p>
+                    {/* Progress Bar */}
+                    <div className="mt-8 h-2 overflow-hidden rounded-full bg-white/10">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            whileInView={{
+                                width: hasSubmission ? '50%' : '0%',
+                            }}
+                            viewport={{ once: true }}
+                            transition={{
+                                duration: 1,
+                                delay: 0.15,
+                                ease: [0.22, 1, 0.36, 1],
+                            }}
+                            className="h-full rounded-full bg-gradient-to-r from-[#00FF87] to-[#00B8FF] shadow-[0_0_14px_rgba(0,255,135,0.25)]"
+                        />
                     </div>
-                )}
 
-                {error && (
-                    <div className="rounded-2xl border border-red-400/20 bg-red-400/5 p-6">
-                        <p className="text-lg font-bold text-red-300">
-                            Unable to load properties
-                        </p>
-                        <p className="mt-2 text-sm text-red-200/70">
-                            {error}
-                        </p>
+                    {/* Verification Steps */}
+                    <motion.div
+                        variants={stagger}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true, margin: '-60px' }}
+                        className="mt-10 grid gap-8 md:grid-cols-3 md:gap-10"
+                    >
+                        <motion.div variants={reveal}>
+                            <VerificationStep
+                                title="Submitted"
+                                description="Property details submitted successfully."
+                                state={hasSubmission ? 'completed' : 'waiting'}
+                                lineActive={hasSubmission}
+                            />
+                        </motion.div>
 
-                        <button
-                            onClick={fetchRoofs}
-                            className="mt-4 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
-                        >
-                            Retry
-                        </button>
-                    </div>
-                )}
+                        <motion.div variants={reveal}>
+                            <VerificationStep
+                                title="Verification"
+                                description="Your property is reviewed by the verification system."
+                                state={hasSubmission ? 'current' : 'waiting'}
+                                lineCurrent={hasSubmission}
+                            />
+                        </motion.div>
 
-                {!loading && !error && phoneNumber && roofs.length === 0 && (
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
-                        <p className="text-xl font-bold text-white">
-                            No properties found
-                        </p>
+                        <motion.div variants={reveal}>
+                            <VerificationStep
+                                title="Approved"
+                                description="Approval will appear here after verification."
+                                state="waiting"
+                            />
+                        </motion.div>
+                    </motion.div>
+                </motion.div>
 
-                        <p className="mt-2 text-slate-400">
-                            Submit a roof/property to see its verification status here.
-                        </p>
-                    </div>
-                )}
+                {/* Bottom Information */}
+                <motion.div
+                    variants={stagger}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: '-80px' }}
+                    className="mt-5 grid gap-4 md:mt-8 md:grid-cols-2"
+                >
+                    <motion.div
+                        variants={reveal}
+                        className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-xl"
+                    >
+                        <div
+                            aria-hidden="true"
+                            className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[#00FF87]/[0.025] blur-3xl"
+                        />
 
-                {!loading && roofs.length > 0 && (
-                    <div className="space-y-6">
-                        {roofs.map((roof, index) => {
-                            const statusConfig = getStatusConfig(
-                                roof?.verification_status ||
-                                roof?.status
-                            );
+                        <div className="relative">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.19em] text-[#00FF87]">
+                                CURRENT STATUS
+                            </p>
 
-                            const area = getArea(roof);
-                            const propertyType = getPropertyType(roof);
+                            <p className="mt-3 text-xl font-medium tracking-[-0.035em] text-white">
+                                {hasSubmission ? 'Under Review' : 'No Submission'}
+                            </p>
 
-                            return (
-                                <div
-                                    key={
-                                        roof?.id ||
-                                        roof?.roof_id ||
-                                        roof?.property_id ||
-                                        index
-                                    }
-                                    className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-xl sm:p-8"
-                                >
-                                    <div className="grid gap-6 md:grid-cols-4">
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-500">
-                                                Property
-                                            </p>
+                            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                                {hasSubmission
+                                    ? 'Your submitted property information is currently being reviewed.'
+                                    : 'Submit your roof or plot details to start the verification process.'}
+                            </p>
+                        </div>
+                    </motion.div>
 
-                                            <p className="mt-2 text-xl font-bold capitalize text-white">
-                                                {propertyType}
-                                            </p>
-                                        </div>
+                    <motion.div
+                        variants={reveal}
+                        className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 backdrop-blur-xl"
+                    >
+                        <div
+                            aria-hidden="true"
+                            className="absolute right-0 top-0 h-24 w-24 rounded-full bg-[#00FF87]/[0.02] blur-3xl"
+                        />
 
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-500">
-                                                Area
-                                            </p>
+                        <div className="relative">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.19em] text-[#00FF87]">
+                                NEXT STEP
+                            </p>
 
-                                            <p className="mt-2 text-xl font-bold text-white">
-                                                {area
-                                                    ? `${area} sq ft`
-                                                    : 'Not available'}
-                                            </p>
-                                        </div>
+                            <p className="mt-3 text-xl font-medium tracking-[-0.035em] text-white">
+                                {hasSubmission
+                                    ? 'Wait for Approval'
+                                    : 'Submit Property'}
+                            </p>
 
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-500">
-                                                Address / City
-                                            </p>
-
-                                            <p className="mt-2 text-lg font-semibold text-white">
-                                                {getAddress(roof)}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-sm font-medium text-slate-500">
-                                                Verification Status
-                                            </p>
-
-                                            <span
-                                                className={`mt-2 inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${statusConfig.className}`}
-                                            >
-                                                {statusConfig.label}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 border-t border-white/10 pt-5">
-                                        <div className="flex flex-wrap gap-6 text-sm text-slate-400">
-                                            {roof?.latitude !== undefined && (
-                                                <span>
-                                                    Latitude: {roof.latitude}
-                                                </span>
-                                            )}
-
-                                            {roof?.longitude !== undefined && (
-                                                <span>
-                                                    Longitude: {roof.longitude}
-                                                </span>
-                                            )}
-
-                                            {(roof?.id || roof?.roof_id) && (
-                                                <span>
-                                                    Roof ID:{' '}
-                                                    {roof.id || roof.roof_id}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-
-                <div className="mt-8 rounded-2xl border border-sky-400/20 bg-sky-400/5 p-5">
-                    <p className="text-sm font-semibold text-sky-400">
-                        LIVE STATUS
-                    </p>
-
-                    <p className="mt-2 text-sm text-slate-400">
-                        Property status automatically refreshes every 30 seconds.
-                    </p>
-                </div>
+                            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                                {hasSubmission
+                                    ? 'Once verification is completed, your approval status will appear here.'
+                                    : 'Complete the owner listing form to submit your property for verification.'}
+                            </p>
+                        </div>
+                    </motion.div>
+                </motion.div>
             </div>
         </section>
     );
