@@ -52,10 +52,19 @@ def add_roof_listing(
     not wait on a GEE round-trip to get their success response.
     """
     try:
+        # area_sqft is optional on the request now (PDF: "estimated_area_sqft
+        # (optional, GEE bhi calculate karega)"). RoofListing.area_sqft is a
+        # NOT NULL column in Postgres (models.py), so passing None straight
+        # through causes psycopg2.errors.NotNullViolation. Fall back to a
+        # 0.0 placeholder here; run_area_verification below will populate
+        # gee_estimated_area_sqft once GEE finishes, which is the
+        # authoritative figure to show on the dashboard in that case.
+        submitted_area = payload.area_sqft if payload.area_sqft is not None else 0.0
+
         new_roof = RoofListing(
             owner_name=current_user.name,
             phone_number=current_user.phone,
-            area_sqft=payload.area_sqft,
+            area_sqft=submitted_area,
             roof_type=payload.roof_type.value,
             latitude=payload.latitude,
             longitude=payload.longitude,
@@ -70,7 +79,7 @@ def add_roof_listing(
             new_roof.id,
             payload.latitude,
             payload.longitude,
-            payload.area_sqft,
+            payload.area_sqft,  # may be None — verification_service should treat that as "no owner estimate, GEE is authoritative"
         )
 
         return success_response(
