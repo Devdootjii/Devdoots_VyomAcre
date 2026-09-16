@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import settings
 from database import Base, engine
-from routes import ai_api, auth_api, lease_api, roof_api, zone_api
+from routes import admin_api, ai_api, auth_api, lease_api, roof_api, zone_api
 from utils.response_helper import error_response, success_response
 
 logging.basicConfig(level=logging.INFO if not settings.DEBUG else logging.DEBUG)
@@ -44,6 +44,7 @@ app.include_router(zone_api.router)
 app.include_router(lease_api.router)
 app.include_router(ai_api.router)
 app.include_router(auth_api.router)
+app.include_router(admin_api.router)
 
 
 # ---------------------------------------------------------------------------
@@ -84,12 +85,29 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 @app.on_event("startup")
 def on_startup():
-    # For local/dev convenience only. In staging/production, prefer
-    # Alembic migrations over create_all() so schema changes are tracked.
-    if settings.APP_ENV == "development":
-        Base.metadata.create_all(bind=engine)
+    # T4 fix (Divyansh's Phase 1 tasks): this USED to only run when
+    # APP_ENV == "development" — meaning if Render's APP_ENV is set to
+    # "production" (the normal thing to do), the Postgres tables would
+    # NEVER get created, and every request would fail with "relation does
+    # not exist". create_all() only creates tables that don't already
+    # exist and never touches/drops existing ones, so it's safe to run on
+    # every startup regardless of environment — this is exactly what the
+    # T4 spec asks for. A real migration tool (Alembic) is still the
+    # better long-term answer once the schema needs to evolve without a
+    # full redeploy wipe, but that's out of scope for the hackathon.
+    Base.metadata.create_all(bind=engine)
 
 
 @app.get("/", tags=["Health"])
 def health_check():
+    return success_response(message="VyomAcre backend is up and running.", data={"env": settings.APP_ENV})
+
+
+@app.get("/api/health", tags=["Health"])
+def api_health_check():
+    """
+    Same as GET / — added because T4's own test instructions reference
+    `/api/health` specifically (Render deploy -> hit /api/health -> insert
+    data -> redeploy -> confirm data survived).
+    """
     return success_response(message="VyomAcre backend is up and running.", data={"env": settings.APP_ENV})
