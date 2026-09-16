@@ -12,6 +12,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import get_db
+from auth_dependency import require_admin, require_owner
+from auth_models import User
 from models import RoofListing, RoofStatusEnum, VerificationStatusEnum
 from schemas import RoofListingCreate, RoofListingOut, RoofStatusUpdate
 from services.verification_service import run_area_verification
@@ -26,6 +28,7 @@ router = APIRouter(prefix="/api/roofs", tags=["Roofs"])
 def add_roof_listing(
     payload: RoofListingCreate,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     """
@@ -36,6 +39,13 @@ def add_roof_listing(
     handler registered in main.py, which returns the standardized error
     envelope automatically.
 
+    T3 addition: `owner_name` / `phone_number` are now taken from the
+    authenticated user (current_user), not from the request body. Before
+    auth existed, the client had to self-report these; trusting them now
+    that we know who's actually logged in would let any owner submit a
+    roof under someone else's name/phone. Harsh's OwnerForm.jsx can keep
+    sending those fields — they're just ignored server-side now.
+
     Day 4: after the listing is saved, a background task (run_area_verification)
     is scheduled to cross-check the submitted area against a GEE-estimated
     polygon area. This runs *after* the response is sent — the owner does
@@ -43,8 +53,8 @@ def add_roof_listing(
     """
     try:
         new_roof = RoofListing(
-            owner_name=payload.owner_name,
-            phone_number=payload.phone_number,
+            owner_name=current_user.name,
+            phone_number=current_user.phone,
             area_sqft=payload.area_sqft,
             roof_type=payload.roof_type.value,
             latitude=payload.latitude,
@@ -268,9 +278,21 @@ def get_roof_listing_by_id(roof_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.patch("/{roof_id}/status")
-def update_roof_status(roof_id: uuid.UUID, payload: RoofStatusUpdate, db: Session = Depends(get_db)):
+def update_roof_status(
+    roof_id: uuid.UUID,
+    payload: RoofStatusUpdate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """
     Fix 6 (Divyansh's fix list) — admin approve/reject.
+
+    T3 addition: now gated behind require_admin. This wasn't in the PDF's
+    explicit T3 list (which only named POST /api/roofs/add,
+    POST /api/lease-requests, PATCH /api/lease-requests/{id}) — but this
+    route already existed as an admin-only action (Fix 6), and leaving it
+    open while everything else got locked down would be an inconsistent,
+    unprotected admin endpoint. Flagging this as an addition beyond spec.
 
     Completes the 3-step flow: GEE auto-verification (Day 4) -> admin
     approval (here) -> only then does the roof show up for companies via
@@ -308,6 +330,78 @@ def update_roof_status(roof_id: uuid.UUID, payload: RoofStatusUpdate, db: Sessio
         logger.exception("Database error while updating roof status for %s", roof_id)
         return error_response(
             message="Failed to update roof status due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.patch("/{roof_id}/verify")
+def verify_roof(roof_id: uuid.UUID, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """
+    T5 — admin manually sets verification_status = 'verified'.
+
+    Distinct from PATCH /{roof_id}/status above (which sets the business
+    approval status, not the GEE verification result). This is a manual
+    override — for when GEE got it wrong, or a roof is stuck in
+    pending_verification (e.g. a GEE call failed) and an admin has
+    checked it by hand.
+    """
+    try:
+        roof = db.query(RoofListing).filter(RoofListing.id == roof_id).first()
+        if roof is None:
+            return error_response(
+                message="Roof listing not found.",
+                code=404,
+                error_details={"roof_id": str(roof_id)},
+            )
+
+        roof.verification_status = VerificationStatusEnum.verified
+        db.commit()
+        db.refresh(roof)
+
+        return success_response(
+            message="Roof marked as verified.",
+            data=RoofListingOut.model_validate(roof),
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        db.rollback()
+        logger.exception("Database error while verifying roof %s", roof_id)
+        return error_response(
+            message="Failed to verify the roof due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.patch("/{roof_id}/reject")
+def reject_roof(roof_id: uuid.UUID, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """T5 — admin manually sets verification_status = 'flagged'."""
+    try:
+        roof = db.query(RoofListing).filter(RoofListing.id == roof_id).first()
+        if roof is None:
+            return error_response(
+                message="Roof listing not found.",
+                code=404,
+                error_details={"roof_id": str(roof_id)},
+            )
+
+        roof.verification_status = VerificationStatusEnum.flagged
+        db.commit()
+        db.refresh(roof)
+
+        return success_response(
+            message="Roof marked as flagged.",
+            data=RoofListingOut.model_validate(roof),
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        db.rollback()
+        logger.exception("Database error while rejecting roof %s", roof_id)
+        return error_response(
+            message="Failed to reject the roof due to a database error.",
             code=500,
             error_details={"reason": str(db_err.__class__.__name__)},
         )
