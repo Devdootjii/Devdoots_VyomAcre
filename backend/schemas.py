@@ -62,16 +62,31 @@ class LeaseStatusUpdate(str, Enum):
 class RoofListingCreate(BaseModel):
     """Payload for POST /api/roofs/add"""
 
-    owner_name: str = Field(..., min_length=2, max_length=120, examples=["Ramesh Gupta"])
-    phone_number: str = Field(..., min_length=10, max_length=15, examples=["+919876543210"])
-    area_sqft: float = Field(..., gt=0, examples=[1200.5])
+    # owner_name / phone_number: kept accepted-but-optional here purely for
+    # backward compatibility with Harsh's OwnerForm.jsx, which may still send
+    # them. auth_dependency's require_owner + roof_api.py always overwrite
+    # these from the authenticated user (current_user.name / .phone) — see
+    # the T3 deviation note in roof_api.py — so they must NOT be required
+    # on the request body, or every submission 422s before reaching the route.
+    owner_name: Optional[str] = Field(
+        default=None, min_length=2, max_length=120, examples=["Ramesh Gupta"]
+    )
+    phone_number: Optional[str] = Field(
+        default=None, min_length=10, max_length=15, examples=["+919876543210"]
+    )
+    # Optional per PDF spec: "estimated_area_sqft (optional, GEE bhi calculate
+    # karega)". If the owner doesn't provide one, GEE's polygon-based estimate
+    # (gee_estimated_area_sqft) is the source of truth once verification runs.
+    area_sqft: Optional[float] = Field(default=None, gt=0, examples=[1200.5])
     roof_type: RoofType = Field(..., examples=["flat"])
     latitude: float = Field(..., ge=-90, le=90, examples=[26.8467])
     longitude: float = Field(..., ge=-180, le=180, examples=[80.9462])
 
     @field_validator("phone_number")
     @classmethod
-    def validate_phone(cls, value: str) -> str:
+    def validate_phone(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
         digits = value.replace("+", "").strip()
         if not digits.isdigit():
             raise ValueError("phone_number must contain only digits (optionally prefixed with '+')")
