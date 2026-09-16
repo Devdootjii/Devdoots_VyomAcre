@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Link,
+  useParams,
+} from 'react-router-dom';
 
 import { UIProvider } from './context/UIContext';
 
@@ -23,7 +29,8 @@ import LandingPage from './components/LandingPage';
 function OwnerPortal() {
   const [ownerData, setOwnerData] = useState(() => {
     try {
-      const savedOwnerData = localStorage.getItem('vyomacre_owner_data');
+      const savedOwnerData =
+        localStorage.getItem('vyomacre_owner_data');
 
       if (savedOwnerData) {
         return JSON.parse(savedOwnerData);
@@ -35,9 +42,15 @@ function OwnerPortal() {
         'Failed to load owner data from localStorage:',
         error
       );
+
       return null;
     }
   });
+
+
+  // ----------------------------------------------------------
+  // SAVE OWNER DATA
+  // ----------------------------------------------------------
 
   useEffect(() => {
     if (ownerData) {
@@ -48,12 +61,22 @@ function OwnerPortal() {
     }
   }, [ownerData]);
 
+
+  // ----------------------------------------------------------
+  // OWNER FORM SUCCESS
+  // ----------------------------------------------------------
+
   const handleOwnerSubmitSuccess = (submittedData) => {
     setOwnerData({
       ...submittedData,
       status: 'Pending',
     });
   };
+
+
+  // ----------------------------------------------------------
+  // APP UI
+  // ----------------------------------------------------------
 
   return (
     <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">

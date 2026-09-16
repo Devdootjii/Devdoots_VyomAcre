@@ -155,15 +155,97 @@ function VerificationStep({
 }
 
 export default function OwnerStatusDashboard({ ownerData }) {
-    const hasSubmission = Boolean(ownerData);
+    const [roofs, setRoofs] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const ownerName = ownerData?.owner_name || 'No submission yet';
-    const area = ownerData?.area_sqft || 0;
-    const propertyType = ownerData?.property_type || 'roof';
-    const status = ownerData?.status || 'Pending';
+    const phoneNumber =
+        ownerData?.phone_number ||
+        ownerData?.owner_phone ||
+        localStorage.getItem('vyomacre_owner_phone') ||
+        '';
 
-    const propertyLabel =
-        propertyType === 'plot' ? 'Plot Area' : 'Roof Area';
+    const fetchRoofs = useCallback(async () => {
+        if (!phoneNumber) {
+            setRoofs([]);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError('');
+
+            const response = await getOwnerRoofs(phoneNumber);
+
+            const data =
+                response?.data?.data ||
+                response?.data?.roofs ||
+                response?.data ||
+                [];
+
+            setRoofs(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Failed to fetch owner roofs:', err);
+            setError(
+                err?.response?.data?.detail ||
+                'Unable to load your property listings.'
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, [phoneNumber]);
+
+    useEffect(() => {
+        fetchRoofs();
+
+        const interval = setInterval(fetchRoofs, 30000);
+
+        return () => clearInterval(interval);
+    }, [fetchRoofs]);
+
+    const getStatusConfig = (status) => {
+        const normalizedStatus = String(status || '')
+            .toLowerCase()
+            .trim();
+
+        if (normalizedStatus === 'verified') {
+            return {
+                label: 'Verified',
+                className:
+                    'border-emerald-400/30 bg-emerald-400/10 text-emerald-300',
+            };
+        }
+
+        if (normalizedStatus === 'flagged') {
+            return {
+                label: 'Flagged',
+                className:
+                    'border-red-400/30 bg-red-400/10 text-red-300',
+            };
+        }
+
+        return {
+            label: 'Pending Verification',
+            className:
+                'border-amber-400/30 bg-amber-400/10 text-amber-300',
+        };
+    };
+
+    const getArea = (roof) =>
+        roof?.area_sqft ??
+        roof?.estimated_area_sqft ??
+        roof?.estimatedAreaSqft ??
+        0;
+
+    const getPropertyType = (roof) =>
+        roof?.property_type ||
+        roof?.propertyType ||
+        'roof';
+
+    const getAddress = (roof) =>
+        roof?.address ||
+        roof?.city ||
+        'Address not available';
 
     return (
         <section
