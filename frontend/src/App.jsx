@@ -7,123 +7,26 @@ import {
   useParams,
 } from 'react-router-dom';
 
+import { UIProvider } from './context/UIContext';
+
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import GeminiChatbot from './components/GeminiChatbot';
+
 import VyomLanding from './components/VyomLanding';
-import LandingPage from './components/LandingPage';
+import Properties from './components/Properties';
+import About from './components/About';
+import Help from './components/Help';
+import Login from './components/Login';
+import Signup from './components/Signup';
+
 import OwnerForm from './components/OwnerForm';
 import OwnerInbox from './components/OwnerInbox';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 import MapDashboard from './components/MapDashboard';
+import LandingPage from './components/LandingPage';
 
-import { UIProvider } from './context/UIContext';
-
-
-// ============================================================
-// PLACEHOLDER PAGE
-// ============================================================
-
-function PlaceholderPage({ title, description }) {
-  return (
-    <div className="min-h-screen bg-slate-100 px-6 pt-32 pb-12">
-      <div className="mx-auto max-w-3xl rounded-3xl bg-white p-8 text-center shadow-xl">
-        <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-          VyomAcre
-        </p>
-
-        <h1 className="mt-3 text-3xl font-black text-slate-900">
-          {title}
-        </h1>
-
-        <p className="mt-4 text-slate-600">
-          {description}
-        </p>
-
-        <Link
-          to="/"
-          className="mt-6 inline-block rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700"
-        >
-          Back to Home
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-
-// ============================================================
-// PROPERTY DETAILS PAGE
-// ============================================================
-
-function PropertyDetails() {
-  const { id } = useParams();
-
-  return (
-    <PlaceholderPage
-      title={`Property Details #${id}`}
-      description="Property details page is ready for the property module."
-    />
-  );
-}
-
-
-// ============================================================
-// AGREEMENT DETAILS PAGE
-// ============================================================
-
-function AgreementDetails() {
-  const { id } = useParams();
-
-  return (
-    <PlaceholderPage
-      title={`Agreement #${id}`}
-      description="Agreement page is ready for the agreement module."
-    />
-  );
-}
-
-
-// ============================================================
-// 404 PAGE
-// ============================================================
-
-function NotFound() {
-  return (
-    <div className="min-h-screen bg-slate-100 px-6 pt-32 pb-12">
-      <div className="mx-auto max-w-2xl rounded-3xl bg-white p-10 text-center shadow-xl">
-        <p className="text-7xl font-black text-slate-900">
-          404
-        </p>
-
-        <h1 className="mt-4 text-3xl font-black text-slate-900">
-          Page Not Found
-        </h1>
-
-        <p className="mt-3 text-slate-600">
-          The page you are looking for does not exist.
-        </p>
-
-        <Link
-          to="/"
-          className="mt-6 inline-block rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white hover:bg-sky-700"
-        >
-          Go Home
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-
-// ============================================================
-// MAIN APP
-// ============================================================
-
-export default function App() {
-
-  // ----------------------------------------------------------
-  // OWNER DATA
-  // ----------------------------------------------------------
-
+function OwnerPortal() {
   const [ownerData, setOwnerData] = useState(() => {
     try {
       const savedOwnerData =
@@ -176,269 +79,182 @@ export default function App() {
   // ----------------------------------------------------------
 
   return (
-    <UIProvider>
-
-      <BrowserRouter>
-
-        <div className="min-h-screen bg-slate-950 font-sans">
-
-          <Navbar />
-
-          <Routes>
-
-            {/* ==================================================
-                HOME
-            ================================================== */}
-
-            <Route
-              path="/"
-              element={<VyomLanding />}
-            />
-
-
-            {/* ==================================================
-                LOGIN
-            ================================================== */}
-
-            <Route
-              path="/login"
-              element={
-                <PlaceholderPage
-                  title="Login"
-                  description="Login module will be connected to the authentication API."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                OWNER REGISTRATION
-            ================================================== */}
-
-            <Route
-              path="/register"
-              element={
-                <div className="min-h-screen bg-slate-100 px-6 pt-28 pb-12">
-
-                  <div className="mx-auto flex max-w-3xl flex-col gap-8">
-
-                    <h2 className="text-center text-3xl font-extrabold text-slate-800">
-                      Registration Portal
-                    </h2>
-
-                    <OwnerForm
-                      onSubmitSuccess={handleOwnerSubmitSuccess}
-                    />
-
-                    <OwnerStatusDashboard
-                      ownerData={ownerData}
-                    />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                OWNER DASHBOARD
-            ================================================== */}
-
-            <Route
-              path="/owner-dashboard"
-              element={
-                <div className="min-h-screen bg-slate-100 px-6 pt-28 pb-12">
-
-                  <div className="mx-auto max-w-7xl">
-
-                    <OwnerStatusDashboard
-                      ownerData={ownerData}
-                    />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                OWNER INBOX
-            ================================================== */}
-
-            <Route
-              path="/owner-inbox"
-              element={
-                <div className="min-h-screen bg-slate-100 px-4 pt-28 pb-12 text-slate-900 sm:px-6">
-
-                  <div className="mx-auto max-w-3xl">
-
-                    <OwnerInbox />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                SEEKER DASHBOARD
-            ================================================== */}
-
-            <Route
-              path="/seeker-dashboard"
-              element={
-                <PlaceholderPage
-                  title="Seeker Dashboard"
-                  description="Seeker dashboard will be connected to the marketplace and lease-request modules."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                ADMIN DASHBOARD
-            ================================================== */}
-
-            <Route
-              path="/admin"
-              element={
-                <PlaceholderPage
-                  title="Admin Dashboard"
-                  description="Admin dashboard is reserved for the administration module."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                COMPANY MARKETPLACE
-            ================================================== */}
-
-            <Route
-              path="/properties"
-              element={
-                <div className="min-h-screen bg-slate-100 px-6 pt-28 pb-12">
-
-                  <div className="mx-auto max-w-7xl">
-
-                    <h2 className="mb-8 text-center text-3xl font-extrabold text-slate-800">
-                      Company Marketplace
-                    </h2>
-
-                    <MapDashboard />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                PROPERTY DETAILS
-            ================================================== */}
-
-            <Route
-              path="/property/:id"
-              element={<PropertyDetails />}
-            />
-
-
-            {/* ==================================================
-                AGREEMENT
-            ================================================== */}
-
-            <Route
-              path="/agreement/:id"
-              element={<AgreementDetails />}
-            />
-
-
-            {/* ==================================================
-                LEGACY / BACKUP VIEW
-            ================================================== */}
-
-            <Route
-              path="/legacy"
-              element={
-                <div className="min-h-screen bg-slate-100 pt-24">
-
-                  <LandingPage />
-
-                  <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
-
-                    <section
-                      id="owner-form"
-                      className="flex flex-col gap-8"
-                    >
-
-                      <OwnerForm
-                        onSubmitSuccess={handleOwnerSubmitSuccess}
-                      />
-
-                      <OwnerStatusDashboard
-                        ownerData={ownerData}
-                      />
-
-                    </section>
-
-                    <MapDashboard />
-
-                  </main>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                ABOUT
-            ================================================== */}
-
-            <Route
-              path="/about"
-              element={
-                <PlaceholderPage
-                  title="About VyomAcre"
-                  description="About VyomAcre page is coming soon."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                HELP
-            ================================================== */}
-
-            <Route
-              path="/help"
-              element={
-                <PlaceholderPage
-                  title="Help Center"
-                  description="VyomAcre Help Center is coming soon."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                404
-            ================================================== */}
-
-            <Route
-              path="*"
-              element={<NotFound />}
-            />
-
-          </Routes>
-
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        {/* Portal Header */}
+        <div className="mb-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            Owner Portal
+          </p>
+
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            Manage Your Space
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            List your rooftop, track its verification status, and manage
+            incoming opportunities from one place.
+          </p>
         </div>
 
-      </BrowserRouter>
+        <div className="space-y-8">
+          <OwnerForm
+            onSubmitSuccess={handleOwnerSubmitSuccess}
+          />
 
-    </UIProvider>
+          <OwnerStatusDashboard
+            ownerData={ownerData}
+          />
+        </div>
+      </div>
+    </main>
   );
-} 
+}
+
+function LegacyPage() {
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <LandingPage />
+
+        <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <section
+            id="owner-form"
+            className="flex flex-col gap-8"
+          >
+            <OwnerPortal />
+          </section>
+
+          <section className="min-w-0">
+            <MapDashboard />
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function OwnerInboxPage() {
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            Marketplace / Requests
+          </p>
+
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            Lease Requests
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            Review and manage incoming lease requests from businesses.
+          </p>
+        </div>
+
+        <OwnerInbox />
+      </div>
+    </main>
+  );
+}
+
+function AppContent() {
+  return (
+    <div className="min-h-screen bg-[#020706] font-sans text-white selection:bg-[#00FF87]/25 selection:text-white">
+      {/* Global Persistent UI */}
+      <Navbar />
+
+      <Routes>
+        {/* =========================================================
+            MAIN APPLICATION
+        ========================================================= */}
+        <Route
+          path="/"
+          element={<VyomLanding />}
+        />
+
+        <Route
+          path="/properties"
+          element={<Properties />}
+        />
+
+        <Route
+          path="/about"
+          element={<About />}
+        />
+
+        <Route
+          path="/help"
+          element={<Help />}
+        />
+
+        {/* =========================================================
+            AUTHENTICATION
+        ========================================================= */}
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        <Route
+          path="/signup"
+          element={<Signup />}
+        />
+
+        {/* Backward-compatible registration route */}
+        <Route
+          path="/register"
+          element={<Signup />}
+        />
+
+        {/* =========================================================
+            OWNER PORTAL
+        ========================================================= */}
+        <Route
+          path="/portal"
+          element={<OwnerPortal />}
+        />
+
+        {/* =========================================================
+            OWNER INBOX
+        ========================================================= */}
+        <Route
+          path="/owner-inbox"
+          element={<OwnerInboxPage />}
+        />
+
+        {/* =========================================================
+            LEGACY / BACKUP
+        ========================================================= */}
+        <Route
+          path="/legacy"
+          element={<LegacyPage />}
+        />
+
+        {/* =========================================================
+            FALLBACK
+        ========================================================= */}
+        <Route
+          path="*"
+          element={<VyomLanding />}
+        />
+      </Routes>
+
+      {/* Global Persistent UI */}
+      <Footer />
+      <GeminiChatbot />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <UIProvider>
+        <AppContent />
+      </UIProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;
