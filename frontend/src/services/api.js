@@ -13,35 +13,34 @@ const apiClient = axios.create({
 });
 
 // ============================================================================
-// EXISTING ENDPOINTS (DO NOT MODIFY)
+// EXISTING ENDPOINTS
 // ============================================================================
 
 // Contract A: Roof Owner Onboarding (Aryan / Harsh)
 export const submitRoofDetails = async (roofData) => {
-  return await api.post('/api/roofs/add', roofData);
+  return await apiClient.post('/api/roofs/add', roofData);
 };
 
 export const getOwnerRoofs = async (phoneNumber) => {
-  return await api.get(`/api/roofs?owner_id=${phoneNumber}`);
+  return await apiClient.get(`/api/roofs?owner_id=${phoneNumber}`);
 };
 
 // Ritesh: Company Marketplace & Admin Radar Endpoints
 export const getAllRoofs = async (params = {}) => {
-  return await api.get('/api/roofs', { params });
+  return await apiClient.get('/api/roofs', { params });
 };
 
 export const getVerifiedRoofs = async () => {
-  return await api.get('/api/roofs/verified');
+  return await apiClient.get('/api/roofs/verified');
 };
 
 export const getScannedZones = async () => {
-  return await api.get('/api/zones/scanned');
+  return await apiClient.get('/api/zones/scanned');
 };
 
 export const createLeaseRequest = async (payload) => {
-  return await api.post('/api/lease-requests', payload);
+  return await apiClient.post('/api/lease-requests', payload);
 };
-
 
 // ============================================================================
 // NEW ENDPOINTS (DAY 10 & 11 TASKS)
@@ -50,28 +49,35 @@ export const createLeaseRequest = async (payload) => {
 /**
  * VYOMACRE AI CHATBOT API INTEGRATION (Balram)
  * Ye function Divyansh ke backend endpoint /api/ai/ask ko hit karega.
- * API Contract: Request { "question": "..." } | Response { "status": "...", "data": { "answer": "..." } }
+ *
+ * API Contract:
+ * Request  -> { "question": "..." }
+ * Response -> { "status": "...", "data": { "answer": "..." } }
+ *
  * @param {string} question - User dwara poocha gaya sawaal.
- * @returns {object} - Backend se aane wala response (success/error state ke sath).
+ * @returns {object} Backend se aane wala response.
  */
 export const askAI = async (question) => {
   try {
     // Axios apiClient ka use karke Divyansh ke endpoint par POST request bhejna
-    const response = await apiClient.post('/api/ai/ask', { 
-      question: question 
+    const response = await apiClient.post('/api/ai/ask', {
+      question: question,
     });
-    
+
     // Axios automatically JSON parse karke response.data me daal deta hai
-    return response.data; 
+    return response.data;
   } catch (error) {
     // Detailed error logging taaki debugging me aasaani ho
-    console.error("askAI API Request Failed:", error);
-    
-    // Standardized Error Envelope (UI crash hone se bachane ke liye fallback)
+    console.error('askAI API Request Failed:', error);
+
+    // Standardized Error Envelope
     return {
-      status: "error",
-      message: error.response?.data?.message || error.message || "Network error ya VyomAcre backend down hai.",
-      data: null
+      status: 'error',
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        'Network error ya VyomAcre backend down hai.',
+      data: null,
     };
   }
 };

@@ -1,15 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
+import { UIProvider } from './context/UIContext';
+
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import GeminiChatbot from './components/GeminiChatbot';
+
 import VyomLanding from './components/VyomLanding';
-import LandingPage from './components/LandingPage';
+import Properties from './components/Properties';
+import About from './components/About';
+import Help from './components/Help';
+import Login from './components/Login';
+import Signup from './components/Signup';
+
 import OwnerForm from './components/OwnerForm';
 import OwnerInbox from './components/OwnerInbox';
-import MapDashboard from './components/MapDashboard';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
+import MapDashboard from './components/MapDashboard';
+import LandingPage from './components/LandingPage';
 
-export default function App() {
+function OwnerPortal() {
   const [ownerData, setOwnerData] = useState(() => {
     try {
       const savedOwnerData = localStorage.getItem('vyomacre_owner_data');
@@ -45,115 +56,182 @@ export default function App() {
   };
 
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-slate-950 font-sans">
-        <Navbar />
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        {/* Portal Header */}
+        <div className="mb-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            Owner Portal
+          </p>
 
-        <Routes>
-          {/* Home */}
-          <Route
-            path="/"
-            element={<VyomLanding />}
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            Manage Your Space
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            List your rooftop, track its verification status, and manage
+            incoming opportunities from one place.
+          </p>
+        </div>
+
+        <div className="space-y-8">
+          <OwnerForm
+            onSubmitSuccess={handleOwnerSubmitSuccess}
           />
 
-          {/* Owner Registration */}
-          <Route
-            path="/register"
-            element={
-              <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-6">
-                <div className="max-w-3xl mx-auto flex flex-col gap-8">
-                  <h2 className="text-3xl font-extrabold text-slate-800 text-center">
-                    Registration Portal
-                  </h2>
-
-                  <OwnerForm
-                    onSubmitSuccess={handleOwnerSubmitSuccess}
-                  />
-
-                  <OwnerStatusDashboard
-                    ownerData={ownerData}
-                  />
-                </div>
-              </div>
-            }
+          <OwnerStatusDashboard
+            ownerData={ownerData}
           />
-
-          {/* Owner Inbox */}
-          <Route
-            path="/owner-inbox"
-            element={
-              <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-4 sm:px-6 text-slate-900">
-                <div className="max-w-3xl mx-auto">
-                  <OwnerInbox />
-                </div>
-              </div>
-            }
-          />
-
-          {/* Company Marketplace */}
-          <Route
-            path="/properties"
-            element={
-              <div className="pt-28 pb-12 min-h-screen bg-slate-100 px-6">
-                <div className="max-w-7xl mx-auto">
-                  <h2 className="text-3xl font-extrabold text-slate-800 mb-8 text-center">
-                    Company Marketplace
-                  </h2>
-
-                  <MapDashboard />
-                </div>
-              </div>
-            }
-          />
-
-          {/* Legacy / Backup View */}
-          <Route
-            path="/legacy"
-            element={
-              <div className="pt-24 min-h-screen bg-slate-100">
-                <LandingPage />
-
-                <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
-                  <section
-                    id="owner-form"
-                    className="flex flex-col gap-8"
-                  >
-                    <OwnerForm
-                      onSubmitSuccess={handleOwnerSubmitSuccess}
-                    />
-
-                    <OwnerStatusDashboard
-                      ownerData={ownerData}
-                    />
-                  </section>
-
-                  <MapDashboard />
-                </main>
-              </div>
-            }
-          />
-
-          {/* About */}
-          <Route
-            path="/about"
-            element={
-              <div className="pt-40 text-center text-3xl font-bold text-slate-400">
-                About VyomAcre Coming Soon...
-              </div>
-            }
-          />
-
-          {/* Help */}
-          <Route
-            path="/help"
-            element={
-              <div className="pt-40 text-center text-3xl font-bold text-slate-400">
-                Help Center Coming Soon...
-              </div>
-            }
-          />
-        </Routes>
+        </div>
       </div>
+    </main>
+  );
+}
+
+function LegacyPage() {
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <LandingPage />
+
+        <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <section
+            id="owner-form"
+            className="flex flex-col gap-8"
+          >
+            <OwnerPortal />
+          </section>
+
+          <section className="min-w-0">
+            <MapDashboard />
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function OwnerInboxPage() {
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            Marketplace / Requests
+          </p>
+
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            Lease Requests
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            Review and manage incoming lease requests from businesses.
+          </p>
+        </div>
+
+        <OwnerInbox />
+      </div>
+    </main>
+  );
+}
+
+function AppContent() {
+  return (
+    <div className="min-h-screen bg-[#020706] font-sans text-white selection:bg-[#00FF87]/25 selection:text-white">
+      {/* Global Persistent UI */}
+      <Navbar />
+
+      <Routes>
+        {/* =========================================================
+            MAIN APPLICATION
+        ========================================================= */}
+        <Route
+          path="/"
+          element={<VyomLanding />}
+        />
+
+        <Route
+          path="/properties"
+          element={<Properties />}
+        />
+
+        <Route
+          path="/about"
+          element={<About />}
+        />
+
+        <Route
+          path="/help"
+          element={<Help />}
+        />
+
+        {/* =========================================================
+            AUTHENTICATION
+        ========================================================= */}
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        <Route
+          path="/signup"
+          element={<Signup />}
+        />
+
+        {/* Backward-compatible registration route */}
+        <Route
+          path="/register"
+          element={<Signup />}
+        />
+
+        {/* =========================================================
+            OWNER PORTAL
+        ========================================================= */}
+        <Route
+          path="/portal"
+          element={<OwnerPortal />}
+        />
+
+        {/* =========================================================
+            OWNER INBOX
+        ========================================================= */}
+        <Route
+          path="/owner-inbox"
+          element={<OwnerInboxPage />}
+        />
+
+        {/* =========================================================
+            LEGACY / BACKUP
+        ========================================================= */}
+        <Route
+          path="/legacy"
+          element={<LegacyPage />}
+        />
+
+        {/* =========================================================
+            FALLBACK
+        ========================================================= */}
+        <Route
+          path="*"
+          element={<VyomLanding />}
+        />
+      </Routes>
+
+      {/* Global Persistent UI */}
+      <Footer />
+      <GeminiChatbot />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <UIProvider>
+        <AppContent />
+      </UIProvider>
     </BrowserRouter>
   );
 }
+
+export default App;

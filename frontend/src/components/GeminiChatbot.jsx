@@ -1,80 +1,75 @@
-/**
- * ============================================================================
- * VYOMACRE AI CHATBOT COMPONENT (PREMIUM & CONTEXT-CONNECTED)
- * ============================================================================
- * Yeh component globally render hota hai. Isme Framer Motion animations aur 
- * Context API ka integration hai taaki yeh Splash Screen ke time par hide ho sake.
- * ============================================================================
- */
-
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { askAI } from '../services/api';
-// 1. UI Engine se connect karne ke liye custom hook import karein
-import { useUI } from '../context/UIContext'; 
+import { useUI } from '../context/UIContext';
 
 export default function GeminiChatbot() {
-  // --------------------------------------------------------------------------
-  // GLOBAL STATE (UI ENGINE)
-  // --------------------------------------------------------------------------
-  // Yahan hum check kar rahe hain ki app abhi load ho rahi hai (Splash screen active hai) ya nahi.
   const { isAppLoading } = useUI();
 
-  // --------------------------------------------------------------------------
-  // LOCAL STATES
-  // --------------------------------------------------------------------------
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { 
-      role: 'ai', 
-      text: 'नमस्ते! मैं VyomAcre AI हूँ। अपनी खाली छत से पैसे कमाने या सोलर एनर्जी के बारे में कोई भी सवाल पूछें।' 
-    }
+    {
+      role: 'ai',
+      text: 'नमस्ते! मैं VyomAcre AI हूँ। अपनी खाली छत से पैसे कमाने या सोलर एनर्जी के बारे में कोई भी सवाल पूछें।',
+    },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const chatEndRef = useRef(null);
 
-  // --------------------------------------------------------------------------
-  // EFFECTS
-  // --------------------------------------------------------------------------
-  // AUTOMATIC SCROLL LOGIC: Naya message aane par hamesha neeche scroll karega
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isLoading]);
 
-  // --------------------------------------------------------------------------
-  // HANDLERS
-  // --------------------------------------------------------------------------
   const handleSendMessage = async () => {
     const trimmedInput = input.trim();
+
     if (!trimmedInput) return;
 
-    // User message UI me add karein
-    setMessages((prev) => [...prev, { role: 'user', text: trimmedInput }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: 'user', text: trimmedInput },
+    ]);
+
     setInput('');
     setIsLoading(true);
 
     try {
-      // API call to backend
       const result = await askAI(trimmedInput);
 
-      if (result && result.status === 'success' && result.data && result.data.answer) {
-        setMessages((prev) => [...prev, { role: 'ai', text: result.data.answer }]);
-      } else {
-        console.error("[VyomAcre AI] Backend error format:", result);
+      if (
+        result &&
+        result.status === 'success' &&
+        result.data &&
+        result.data.answer
+      ) {
         setMessages((prev) => [
-          ...prev, 
-          { role: 'ai', text: 'माफ़ कीजिये, सर्वर से सही जवाब नहीं मिल पाया। कृपया थोड़ी देर बाद प्रयास करें।' }
+          ...prev,
+          { role: 'ai', text: result.data.answer },
+        ]);
+      } else {
+        console.error('[VyomAcre AI] Backend error format:', result);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            text: 'माफ़ कीजिये, सर्वर से सही जवाब नहीं मिल पाया। कृपया थोड़ी देर बाद प्रयास करें।',
+          },
         ]);
       }
     } catch (error) {
-      console.error("[VyomAcre AI] Network error:", error);
+      console.error('[VyomAcre AI] Network error:', error);
+
       setMessages((prev) => [
-        ...prev, 
-        { role: 'ai', text: 'नेटवर्क में कोई समस्या है या VyomAcre सर्वर डाउन है। कृपया अपना कनेक्शन जांचें।' }
+        ...prev,
+        {
+          role: 'ai',
+          text: 'नेटवर्क में कोई समस्या है या VyomAcre सर्वर डाउन है। कृपया अपना कनेक्शन जांचें।',
+        },
       ]);
     } finally {
       setIsLoading(false);
@@ -88,94 +83,206 @@ export default function GeminiChatbot() {
     }
   };
 
-  // ==========================================================================
-  // RENDER GUARD (SPLASH SCREEN PROTECTION)
-  // ==========================================================================
-  // Agar splash screen chal rahi hai, toh is component ko DOM me render hi mat karo.
-  // Isse UI ekdum clean rahega aur load hone ke baad hi chatbot samne aayega.
   if (isAppLoading) {
-    return null; 
+    return null;
   }
 
-  // ==========================================================================
-  // COMPONENT UI (RENDER)
-  // ==========================================================================
   return (
-    /* Main wrapper jisme ek smooth pop-up animation lagayi gayi hai.
-       Jab isAppLoading false hoga, tab ye spring animation ke sath screen par aayega. */
-    <motion.div 
+    <motion.div
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.5 }}
-      className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end"
+      transition={{
+        type: 'spring',
+        stiffness: 260,
+        damping: 20,
+        delay: 0.5,
+      }}
+      className="fixed bottom-5 right-5 z-[9999] flex flex-col items-end sm:bottom-6 sm:right-6"
     >
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="mb-4 w-[90vw] sm:w-[380px] h-[500px] max-h-[80vh] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            initial={{
+              opacity: 0,
+              y: 30,
+              scale: 0.96,
+              transformOrigin: 'bottom right',
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1,
+            }}
+            exit={{
+              opacity: 0,
+              y: 24,
+              scale: 0.96,
+            }}
+            transition={{
+              duration: 0.3,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            className="mb-4 flex h-[min(600px,78vh)] w-[calc(100vw-40px)] flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#020706]/95 backdrop-blur-2xl sm:w-[390px]"
             style={{
-              boxShadow: "0 25px 50px -12px rgba(0, 200, 255, 0.15)" // Subtle Cyber Cyan Glow
+              boxShadow:
+                '0 24px 70px rgba(0,0,0,0.45), 0 0 35px rgba(0,255,135,0.06)',
             }}
           >
-            {/* CHAT HEADER */}
-            <div className="bg-slate-800/80 p-4 border-b border-slate-700/50 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+            {/* =========================================================
+                HEADER
+            ========================================================= */}
+            <div className="relative flex items-center justify-between border-b border-white/10 bg-white/[0.025] px-4 py-4 backdrop-blur-xl">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-0 h-16 w-40 -translate-x-1/2 rounded-full bg-[#00FF87]/[0.035] blur-2xl"
+              />
+
+              <div className="relative flex min-w-0 items-center gap-3">
+                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#00FF87]/20 bg-[#00FF87]/[0.045]">
+                  <motion.span
+                    animate={{
+                      opacity: [0.5, 1, 0.5],
+                      scale: [0.9, 1, 0.9],
+                    }}
+                    transition={{
+                      duration: 2.4,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    }}
+                    className="absolute h-2.5 w-2.5 rounded-full bg-[#00FF87] shadow-[0_0_12px_rgba(0,255,135,0.75)]"
+                  />
+
+                  <span className="relative h-1.5 w-1.5 rounded-full bg-[#00FF87]" />
                 </div>
-                <h3 className="text-white font-bold text-lg tracking-wide">VyomAcre AI</h3>
+
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold tracking-[-0.015em] text-white">
+                    VyomAcre AI
+                  </h3>
+
+                  <div className="mt-1 flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.7)]" />
+                    <span className="text-[9px] font-medium uppercase tracking-[0.16em] text-slate-500">
+                      Online
+                    </span>
+                  </div>
+                </div>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)} 
-                className="text-slate-400 hover:text-white hover:bg-slate-700/50 p-1.5 rounded-md transition-colors"
+
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.02] text-slate-500 outline-none transition-all duration-200 hover:border-white/15 hover:bg-white/[0.05] hover:text-white focus-visible:ring-2 focus-visible:ring-[#00FF87]/30"
                 aria-label="Close Chat"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path
+                    d="M6 6l12 12M18 6 6 18"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </button>
             </div>
 
-            {/* CHAT HISTORY AREA */}
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-              {messages.map((msg, index) => (
-                <motion.div 
-                  key={index} 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`max-w-[85%] p-3 rounded-2xl text-[14px] leading-relaxed shadow-sm ${
-                    msg.role === 'user' 
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white self-end rounded-br-sm' 
-                    : 'bg-slate-800/80 backdrop-blur-md text-slate-200 border border-slate-700/50 self-start rounded-bl-sm'
-                  }`}
-                >
-                  {msg.text}
-                </motion.div>
-              ))}
-              
-              {/* LOADING INDICATOR */}
-              {isLoading && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-slate-800/80 backdrop-blur-md text-slate-400 border border-slate-700/50 self-start px-4 py-3 rounded-2xl rounded-bl-sm flex items-center gap-1.5"
-                >
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                </motion.div>
-              )}
-              <div ref={chatEndRef}></div>
+            {/* =========================================================
+                CHAT HISTORY
+            ========================================================= */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+              <div className="flex flex-col gap-3">
+                {messages.map((msg, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{
+                      opacity: 0,
+                      y: 10,
+                      scale: 0.98,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      scale: 1,
+                    }}
+                    transition={{
+                      duration: 0.25,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className={
+                      'max-w-[86%] rounded-2xl px-3.5 py-3 text-[13px] leading-6 ' +
+                      (msg.role === 'user'
+                        ? 'self-end rounded-br-sm border border-[#00FF87]/25 bg-[#00FF87]/10 text-white shadow-[0_0_18px_rgba(0,255,135,0.035)]'
+                        : 'self-start rounded-bl-sm border border-white/10 bg-white/[0.035] text-slate-300 backdrop-blur-md')
+                    }
+                  >
+                    {msg.role === 'ai' && (
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_6px_rgba(0,255,135,0.7)]" />
+                        <span className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                          Vyom AI
+                        </span>
+                      </div>
+                    )}
+
+                    <span
+                      className={
+                        msg.role === 'user'
+                          ? 'text-slate-100'
+                          : 'text-slate-300'
+                      }
+                    >
+                      {msg.text}
+                    </span>
+                  </motion.div>
+                ))}
+
+                {/* Loading */}
+                {isLoading && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                      y: 8,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    transition={{
+                      duration: 0.2,
+                    }}
+                    className="flex items-center gap-1.5 self-start rounded-2xl rounded-bl-sm border border-white/10 bg-white/[0.035] px-4 py-3 backdrop-blur-md"
+                    aria-label="AI is typing"
+                  >
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.65)]"
+                      style={{ animationDelay: '0ms' }}
+                    />
+
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.65)]"
+                      style={{ animationDelay: '150ms' }}
+                    />
+
+                    <span
+                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.65)]"
+                      style={{ animationDelay: '300ms' }}
+                    />
+                  </motion.div>
+                )}
+
+                <div ref={chatEndRef} />
+              </div>
             </div>
 
-            {/* MESSAGE INPUT AREA */}
-            <div className="p-3 bg-slate-800/80 backdrop-blur-md border-t border-slate-700/50">
-              <div className="relative flex items-center">
+            {/* =========================================================
+                INPUT AREA
+            ========================================================= */}
+            <div className="shrink-0 border-t border-white/10 bg-[#030A08] p-3 backdrop-blur-xl">
+              <div className="relative flex items-end">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -183,53 +290,122 @@ export default function GeminiChatbot() {
                   placeholder="अपना सवाल यहाँ लिखें..."
                   disabled={isLoading}
                   rows={1}
-                  className="w-full bg-slate-900/80 text-white border border-slate-700/50 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500/50 text-sm resize-none disabled:opacity-50 disabled:cursor-not-allowed placeholder-slate-500"
+                  className="min-h-[46px] max-h-28 w-full resize-none rounded-xl border border-white/10 bg-[#020706] py-3 pl-4 pr-12 text-sm text-white outline-none placeholder:text-slate-600 transition-all duration-200 hover:border-white/15 focus:border-[#00FF87]/50 focus:ring-2 focus:ring-[#00FF87]/10 focus:shadow-[0_0_20px_rgba(0,255,135,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
                 />
-                <button 
+
+                <button
+                  type="button"
                   onClick={handleSendMessage}
                   disabled={isLoading || !input.trim()}
-                  className="absolute right-2 p-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-white rounded-lg transition-all shadow-[0_0_10px_rgba(0,184,255,0.3)] disabled:shadow-none flex items-center justify-center"
+                  className={
+                    'absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 ' +
+                    (isLoading || !input.trim()
+                      ? 'cursor-not-allowed bg-white/10 text-slate-600 shadow-none'
+                      : 'bg-[#00FF87] text-[#020706] shadow-[0_0_12px_rgba(0,255,135,0.25)] hover:shadow-[0_0_18px_rgba(0,255,135,0.4)] hover:brightness-105')
+                  }
                   aria-label="Send Message"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transform rotate-90" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                  <svg
+                    className="h-4 w-4 rotate-90"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14Z" />
                   </svg>
                 </button>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between px-1">
+                <span className="text-[8px] uppercase tracking-[0.14em] text-slate-700">
+                  ENTER TO SEND
+                </span>
+
+                <span className="text-[8px] uppercase tracking-[0.14em] text-slate-700">
+                  SHIFT + ENTER FOR NEW LINE
+                </span>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* FLOATING ACTION BUTTON (Chat Toggle) */}
+      {/* =========================================================
+          FLOATING ACTION BUTTON
+      ========================================================= */}
       <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full flex items-center justify-center transition-all relative group"
-        style={{
-          background: "linear-gradient(135deg, #00B8FF 0%, #0055FF 100%)",
-          boxShadow: "0 10px 25px -5px rgba(0, 184, 255, 0.4)"
+        type="button"
+        whileHover={{
+          scale: 1.06,
         }}
+        whileTap={{
+          scale: 0.94,
+        }}
+        onClick={() => setIsOpen(!isOpen)}
+        className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-[#00FF87] text-[#020706] shadow-[0_0_20px_rgba(0,255,135,0.4)] outline-none transition-shadow duration-300 hover:shadow-[0_0_28px_rgba(0,255,135,0.52)] focus-visible:ring-2 focus-visible:ring-[#00FF87] focus-visible:ring-offset-2 focus-visible:ring-offset-[#020706]"
+        aria-label={isOpen ? 'Close VyomAcre AI' : 'Open VyomAcre AI'}
+        aria-expanded={isOpen}
       >
-        {/* Outer Glow Effect on Hover */}
-        <div className="absolute inset-0 rounded-full bg-cyan-400 opacity-0 group-hover:opacity-30 blur-lg transition-opacity duration-300"></div>
-        
-        {isOpen ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
-        )}
-        
-        {/* Unread notification dot */}
+        {/* Hover Aura */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full bg-[#00FF87] opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-30"
+        />
+
+        {/* Inner Ring */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-[3px] rounded-full border border-[#020706]/10"
+        />
+
+        <AnimatePresence mode="wait" initial={false}>
+          {isOpen ? (
+            <motion.svg
+              key="close"
+              initial={{ rotate: -45, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 45, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              xmlns="http://www.w3.org/2000/svg"
+              className="relative z-10 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18 18 6M6 6l12 12"
+              />
+            </motion.svg>
+          ) : (
+            <motion.svg
+              key="chat"
+              initial={{ rotate: 15, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: -15, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              xmlns="http://www.w3.org/2000/svg"
+              className="relative z-10 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-5 5v-5Z"
+              />
+            </motion.svg>
+          )}
+        </AnimatePresence>
+
+        {/* Unread Indicator */}
         {!isOpen && (
-          <span className="absolute top-0 right-0 flex h-3.5 w-3.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-slate-900"></span>
+          <span className="absolute right-0 top-0 flex h-3.5 w-3.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-40" />
+            <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-[#00FF87] bg-[#020706]" />
           </span>
         )}
       </motion.button>
