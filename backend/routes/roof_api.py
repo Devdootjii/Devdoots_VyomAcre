@@ -52,21 +52,10 @@ def add_roof_listing(
     not wait on a GEE round-trip to get their success response.
     """
     try:
-        # area_sqft is optional on the request now (PDF: "estimated_area_sqft
-        # (optional, GEE bhi calculate karega)"). If the owner didn't submit
-        # one, store a 0.0 placeholder for now — run_area_verification below
-        # will populate gee_estimated_area_sqft once GEE finishes, which is
-        # what the dashboard should display as the authoritative figure in
-        # that case. (If RoofListing.area_sqft is a NOT NULL column, this
-        # placeholder avoids a DB error; if it's already nullable, None can
-        # be passed here directly instead — worth confirming against
-        # models.py.)
-        submitted_area = payload.area_sqft if payload.area_sqft is not None else 0.0
-
         new_roof = RoofListing(
             owner_name=current_user.name,
             phone_number=current_user.phone,
-            area_sqft=submitted_area,
+            area_sqft=payload.area_sqft,
             roof_type=payload.roof_type.value,
             latitude=payload.latitude,
             longitude=payload.longitude,
@@ -81,7 +70,7 @@ def add_roof_listing(
             new_roof.id,
             payload.latitude,
             payload.longitude,
-            payload.area_sqft,  # may be None — verification_service should treat that as "no owner estimate, GEE is authoritative"
+            payload.area_sqft,
         )
 
         return success_response(
@@ -341,6 +330,78 @@ def update_roof_status(
         logger.exception("Database error while updating roof status for %s", roof_id)
         return error_response(
             message="Failed to update roof status due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.patch("/{roof_id}/verify")
+def verify_roof(roof_id: uuid.UUID, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """
+    T5 — admin manually sets verification_status = 'verified'.
+
+    Distinct from PATCH /{roof_id}/status above (which sets the business
+    approval status, not the GEE verification result). This is a manual
+    override — for when GEE got it wrong, or a roof is stuck in
+    pending_verification (e.g. a GEE call failed) and an admin has
+    checked it by hand.
+    """
+    try:
+        roof = db.query(RoofListing).filter(RoofListing.id == roof_id).first()
+        if roof is None:
+            return error_response(
+                message="Roof listing not found.",
+                code=404,
+                error_details={"roof_id": str(roof_id)},
+            )
+
+        roof.verification_status = VerificationStatusEnum.verified
+        db.commit()
+        db.refresh(roof)
+
+        return success_response(
+            message="Roof marked as verified.",
+            data=RoofListingOut.model_validate(roof),
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        db.rollback()
+        logger.exception("Database error while verifying roof %s", roof_id)
+        return error_response(
+            message="Failed to verify the roof due to a database error.",
+            code=500,
+            error_details={"reason": str(db_err.__class__.__name__)},
+        )
+
+
+@router.patch("/{roof_id}/reject")
+def reject_roof(roof_id: uuid.UUID, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """T5 — admin manually sets verification_status = 'flagged'."""
+    try:
+        roof = db.query(RoofListing).filter(RoofListing.id == roof_id).first()
+        if roof is None:
+            return error_response(
+                message="Roof listing not found.",
+                code=404,
+                error_details={"roof_id": str(roof_id)},
+            )
+
+        roof.verification_status = VerificationStatusEnum.flagged
+        db.commit()
+        db.refresh(roof)
+
+        return success_response(
+            message="Roof marked as flagged.",
+            data=RoofListingOut.model_validate(roof),
+            code=200,
+        )
+
+    except SQLAlchemyError as db_err:
+        db.rollback()
+        logger.exception("Database error while rejecting roof %s", roof_id)
+        return error_response(
+            message="Failed to reject the roof due to a database error.",
             code=500,
             error_details={"reason": str(db_err.__class__.__name__)},
         )
