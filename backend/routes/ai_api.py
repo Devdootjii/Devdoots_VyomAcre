@@ -21,6 +21,8 @@ hardcoding one model name, this module:
 
 import logging
 import re
+import threading
+import time
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -48,6 +50,59 @@ _config_error = ""
 _dead_models: set = set()          # model names confirmed deprecated this process
 _working_model_name = ""            # last model name that actually succeeded
 _VERSION_RE = re.compile(r"(\d+(?:\.\d+)?)")
+
+# --- Phase 2 backend fix: Gemini 429 auto-retry ---
+# Free tier is 5 req/min — under normal chatbot traffic this gets hit
+# often enough that users should never see a raw 502 for it.
+MAX_RETRIES_PER_MODEL = 3
+DEFAULT_RETRY_DELAY_SECONDS = 2.0   # used when Google's error doesn't carry a retry_delay
+_RETRY_DELAY_RE = re.compile(r"retry_delay\s*\{\s*seconds:\s*(\d+)")
+
+# --- Phase 2 backend fix: same-question cache (5 min) ---
+# Keyed on (context, normalized question). A cache hit skips the Gemini
+# call entirely, which also helps stay under the 5 req/min free-tier limit
+# when multiple people ask the same obvious question in a demo.
+_ANSWER_CACHE_TTL_SECONDS = 5 * 60
+_answer_cache: dict[tuple[str, str], tuple[str, float]] = {}
+_cache_lock = threading.Lock()
+
+
+def _cache_key(question: str, context: str) -> tuple[str, str]:
+    return (context.strip().lower(), " ".join(question.strip().lower().split()))
+
+
+def _cache_get(key: tuple[str, str]) -> str | None:
+    with _cache_lock:
+        entry = _answer_cache.get(key)
+        if entry is None:
+            return None
+        answer, stored_at = entry
+        if time.monotonic() - stored_at > _ANSWER_CACHE_TTL_SECONDS:
+            del _answer_cache[key]
+            return None
+        return answer
+
+
+def _cache_set(key: tuple[str, str], answer: str) -> None:
+    with _cache_lock:
+        _answer_cache[key] = (answer, time.monotonic())
+
+
+def _extract_retry_delay(exc) -> float:
+    """
+    google.api_core's ResourceExhausted sometimes carries Google's
+    suggested wait time in its error details (a RetryInfo proto rendered
+    into the string form as "retry_delay { seconds: N }"). Use that when
+    present — it's Google telling us exactly how long the quota window
+    needs — otherwise fall back to a fixed default.
+    """
+    match = _RETRY_DELAY_RE.search(str(exc))
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    return DEFAULT_RETRY_DELAY_SECONDS
 
 
 def _ensure_configured() -> bool:
@@ -117,6 +172,15 @@ def ask_ai(payload: AskRequest):
     an owner-side widget from a company-side widget); the system prompt
     already carries the platform context Gemini needs.
     """
+    cache_key = _cache_key(payload.question, payload.context)
+    cached_answer = _cache_get(cache_key)
+    if cached_answer is not None:
+        return success_response(
+            message="Answer generated successfully.",
+            data={"question": payload.question, "answer": cached_answer},
+            code=200,
+        )
+
     if not _ensure_configured():
         return error_response(
             message="AI assistant is not available right now.",
@@ -125,6 +189,10 @@ def ask_ai(payload: AskRequest):
         )
 
     import google.generativeai as genai
+    try:
+        from google.api_core.exceptions import ResourceExhausted
+    except ImportError:  # pragma: no cover - ships as a dependency of google-generativeai
+        ResourceExhausted = None  # type: ignore
 
     global _working_model_name
 
@@ -148,7 +216,31 @@ def ask_ai(payload: AskRequest):
     for model_name in ordered_names[:5]:  # bounded — don't try forever
         try:
             model = genai.GenerativeModel(model_name=model_name, system_instruction=_SYSTEM_PROMPT)
-            response = model.generate_content(payload.question)
+
+            # Retry loop for 429s specifically. Free tier is 5 req/min, so
+            # a single burst of chatbot traffic (e.g. a demo) can trip this
+            # even when everything else is healthy — the user should never
+            # see a raw 502 for what is really just "wait a couple seconds".
+            response = None
+            for attempt in range(1, MAX_RETRIES_PER_MODEL + 1):
+                try:
+                    response = model.generate_content(payload.question)
+                    break
+                except Exception as inner_exc:  # noqa: BLE001
+                    is_quota_error = ResourceExhausted is not None and isinstance(
+                        inner_exc, ResourceExhausted
+                    )
+                    if not is_quota_error:
+                        raise
+                    if attempt == MAX_RETRIES_PER_MODEL:
+                        raise
+                    delay = _extract_retry_delay(inner_exc)
+                    logger.warning(
+                        "Gemini 429 on model '%s' (attempt %d/%d) — retrying in %.1fs.",
+                        model_name, attempt, MAX_RETRIES_PER_MODEL, delay,
+                    )
+                    time.sleep(delay)
+
             answer = (response.text or "").strip()
 
             if not answer:
@@ -158,6 +250,7 @@ def ask_ai(payload: AskRequest):
                 )
 
             _working_model_name = model_name  # remember what worked
+            _cache_set(cache_key, answer)
             return success_response(
                 message="Answer generated successfully.",
                 data={"question": payload.question, "answer": answer},
@@ -166,6 +259,18 @@ def ask_ai(payload: AskRequest):
 
         except Exception as exc:  # noqa: BLE001
             last_error = f"{exc.__class__.__name__}: {exc}"
+
+            if ResourceExhausted is not None and isinstance(exc, ResourceExhausted):
+                logger.warning(
+                    "Gemini model '%s' still rate-limited after %d retries.",
+                    model_name, MAX_RETRIES_PER_MODEL,
+                )
+                return error_response(
+                    message="AI assistant is getting a lot of questions right now — please try again in a few seconds.",
+                    code=503,
+                    error_details={"reason": last_error},
+                )
+
             if _is_model_retired_error(exc):
                 logger.warning("Gemini model '%s' is retired — trying the next candidate.", model_name)
                 _dead_models.add(model_name)
