@@ -12,13 +12,23 @@ import Footer from './components/Footer';
 import GeminiChatbot from './components/GeminiChatbot';
 
 import VyomLanding from './components/VyomLanding';
+<<<<<<< HEAD
 import Login from './components/Login';
+=======
+import Properties from './components/Properties';
+import About from './components/About';
+import Help from './components/Help';
+import Login from './components/Login';
+import Signup from './components/Signup';
+>>>>>>> origin/main
 
 import OwnerForm from './components/OwnerForm';
 import OwnerInbox from './components/OwnerInbox';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 import MapDashboard from './components/MapDashboard';
+import LandingPage from './components/LandingPage';
 
+<<<<<<< HEAD
 
 // ============================================================
 // PLACEHOLDER PAGE
@@ -104,6 +114,9 @@ function NotFound() {
 
 function OwnerPortal() {
 
+=======
+function OwnerPortal() {
+>>>>>>> origin/main
   const [ownerData, setOwnerData] = useState(() => {
     try {
       const savedOwnerData =
@@ -157,11 +170,17 @@ function OwnerPortal() {
 
   return (
     <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+<<<<<<< HEAD
 
       <div className="mx-auto max-w-7xl">
 
         <div className="mb-8">
 
+=======
+      <div className="mx-auto max-w-4xl">
+        {/* Portal Header */}
+        <div className="mb-8">
+>>>>>>> origin/main
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
             Owner Portal
           </p>
@@ -174,6 +193,7 @@ function OwnerPortal() {
             List your rooftop, track its verification status, and manage
             incoming opportunities from one place.
           </p>
+<<<<<<< HEAD
 
         </div>
 
@@ -192,10 +212,25 @@ function OwnerPortal() {
 
       </div>
 
+=======
+        </div>
+
+        <div className="space-y-8">
+          <OwnerForm
+            onSubmitSuccess={handleOwnerSubmitSuccess}
+          />
+
+          <OwnerStatusDashboard
+            ownerData={ownerData}
+          />
+        </div>
+      </div>
+>>>>>>> origin/main
     </main>
   );
 }
 
+<<<<<<< HEAD
 
 // ============================================================
 // SIGNUP / REGISTER PAGE
@@ -227,10 +262,32 @@ function RegisterPage() {
 
       </div>
 
+=======
+function LegacyPage() {
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <LandingPage />
+
+        <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <section
+            id="owner-form"
+            className="flex flex-col gap-8"
+          >
+            <OwnerPortal />
+          </section>
+
+          <section className="min-w-0">
+            <MapDashboard />
+          </section>
+        </div>
+      </div>
+>>>>>>> origin/main
     </main>
   );
 }
 
+<<<<<<< HEAD
 
 // ============================================================
 // OWNER INBOX PAGE
@@ -245,6 +302,13 @@ function OwnerInboxPage() {
 
         <div className="mb-8">
 
+=======
+function OwnerInboxPage() {
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8">
+>>>>>>> origin/main
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
             Marketplace / Requests
           </p>
@@ -256,6 +320,7 @@ function OwnerInboxPage() {
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
             Review and manage incoming lease requests from businesses.
           </p>
+<<<<<<< HEAD
 
         </div>
 
@@ -263,10 +328,17 @@ function OwnerInboxPage() {
 
       </div>
 
+=======
+        </div>
+
+        <OwnerInbox />
+      </div>
+>>>>>>> origin/main
     </main>
   );
 }
 
+<<<<<<< HEAD
 
 // ============================================================
 // LEGACY PAGE
@@ -396,21 +468,56 @@ function AppContent() {
             HOME
         ==================================================== */}
 
+=======
+function AppContent() {
+  return (
+    <div className="min-h-screen bg-[#020706] font-sans text-white selection:bg-[#00FF87]/25 selection:text-white">
+      {/* Global Persistent UI */}
+      <Navbar />
+
+      <Routes>
+        {/* =========================================================
+            MAIN APPLICATION
+        ========================================================= */}
+>>>>>>> origin/main
         <Route
           path="/"
           element={<VyomLanding />}
         />
 
+<<<<<<< HEAD
 
         {/* ====================================================
             LOGIN
         ==================================================== */}
 
         <Route
+=======
+        <Route
+          path="/properties"
+          element={<Properties />}
+        />
+
+        <Route
+          path="/about"
+          element={<About />}
+        />
+
+        <Route
+          path="/help"
+          element={<Help />}
+        />
+
+        {/* =========================================================
+            AUTHENTICATION
+        ========================================================= */}
+        <Route
+>>>>>>> origin/main
           path="/login"
           element={<Login />}
         />
 
+<<<<<<< HEAD
 
         {/* ====================================================
             SIGNUP
@@ -444,21 +551,44 @@ function AppContent() {
 
         {/* Backward-compatible owner portal */}
 
+=======
+        <Route
+          path="/signup"
+          element={<Signup />}
+        />
+
+        {/* Backward-compatible registration route */}
+        <Route
+          path="/register"
+          element={<Signup />}
+        />
+
+        {/* =========================================================
+            OWNER PORTAL
+        ========================================================= */}
+>>>>>>> origin/main
         <Route
           path="/portal"
           element={<OwnerPortal />}
         />
 
+<<<<<<< HEAD
 
         {/* ====================================================
             OWNER INBOX
         ==================================================== */}
 
+=======
+        {/* =========================================================
+            OWNER INBOX
+        ========================================================= */}
+>>>>>>> origin/main
         <Route
           path="/owner-inbox"
           element={<OwnerInboxPage />}
         />
 
+<<<<<<< HEAD
 
         {/* ====================================================
             SEEKER DASHBOARD
@@ -568,11 +698,17 @@ function AppContent() {
             LEGACY
         ==================================================== */}
 
+=======
+        {/* =========================================================
+            LEGACY / BACKUP
+        ========================================================= */}
+>>>>>>> origin/main
         <Route
           path="/legacy"
           element={<LegacyPage />}
         />
 
+<<<<<<< HEAD
 
         {/* ====================================================
             404
@@ -590,6 +726,20 @@ function AppContent() {
 
       <GeminiChatbot />
 
+=======
+        {/* =========================================================
+            FALLBACK
+        ========================================================= */}
+        <Route
+          path="*"
+          element={<VyomLanding />}
+        />
+      </Routes>
+
+      {/* Global Persistent UI */}
+      <Footer />
+      <GeminiChatbot />
+>>>>>>> origin/main
     </div>
   );
 }
@@ -605,4 +755,7 @@ function App() {
 }
 
 export default App;
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main

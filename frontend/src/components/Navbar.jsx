@@ -65,7 +65,10 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const isHomePage = location.pathname === '/';
+<<<<<<< HEAD
   const brandLetters = 'VyomAcre'.split('');
+=======
+>>>>>>> origin/main
 
   const handleLogoClick = (event) => {
     event.preventDefault();
@@ -121,10 +124,16 @@ export default function Navbar() {
     >
       <div className="border-b border-white/10 bg-[#020706]/70 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex h-[72px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
+<<<<<<< HEAD
 
           {/* Brand */}
           <a
             href="/"
+=======
+          {/* Brand */}
+          <Link
+            to="/"
+>>>>>>> origin/main
             onClick={handleLogoClick}
             aria-label="VyomAcre home"
             className="group relative inline-flex items-center rounded-full py-2 pr-3 outline-none"
@@ -134,6 +143,7 @@ export default function Navbar() {
               transition={desktopNavTransition}
               className="relative flex items-center"
             >
+<<<<<<< HEAD
               {brandLetters.map((letter, index) => (
                 <motion.span
                   key={index}
@@ -157,6 +167,15 @@ export default function Navbar() {
                   {letter}
                 </motion.span>
               ))}
+=======
+              <span className="text-[1.35rem] font-semibold tracking-[-0.04em] text-white sm:text-[1.45rem]">
+                Vyom
+              </span>
+
+              <span className="text-[1.35rem] font-semibold tracking-[-0.04em] text-[#00FF87] sm:text-[1.45rem]">
+                Acre
+              </span>
+>>>>>>> origin/main
 
               <motion.span
                 aria-hidden="true"
@@ -166,7 +185,11 @@ export default function Navbar() {
                 className="absolute -inset-x-2 -inset-y-1 -z-10 rounded-full bg-[#00FF87]/10 blur-md"
               />
             </motion.div>
+<<<<<<< HEAD
           </a>
+=======
+          </Link>
+>>>>>>> origin/main
 
           {/* Desktop Navigation */}
           <div className="hidden items-center md:flex">
@@ -176,7 +199,11 @@ export default function Navbar() {
                   item.path === '/'
                     ? location.pathname === '/'
                     : location.pathname === item.path ||
+<<<<<<< HEAD
                     location.pathname.startsWith(`${item.path}/`);
+=======
+                      location.pathname.startsWith(`${item.path}/`);
+>>>>>>> origin/main
 
                 return (
                   <Link
@@ -197,6 +224,7 @@ export default function Navbar() {
                     )}
 
                     <span
+<<<<<<< HEAD
                       className={`relative z-10 ${isActive
                           ? 'text-white [text-shadow:0_0_10px_rgba(0,255,135,0.12)]'
                           : ''
@@ -204,6 +232,18 @@ export default function Navbar() {
                     >
                       {item.label}
                     </span>
+=======
+                      className={`relative z-10 ${
+                        isActive
+                          ? 'text-white [text-shadow:0_0_10px_rgba(0,255,135,0.12)]'
+                          : ''
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+
+                    <span className="pointer-events-none absolute inset-x-3 -bottom-[1px] h-px scale-x-0 bg-[#00FF87]/60 opacity-0 blur-[1px] transition-all duration-300 group-hover:scale-x-100" />
+>>>>>>> origin/main
                   </Link>
                 );
               })}
@@ -229,7 +269,11 @@ export default function Navbar() {
               }}
             >
               <Link
+<<<<<<< HEAD
                 to="/register"
+=======
+                to="/signup"
+>>>>>>> origin/main
                 className="inline-flex items-center justify-center rounded-full bg-[#00FF87] px-5 py-2.5 text-[13px] font-semibold tracking-[-0.01em] text-[#020706] shadow-[0_0_15px_rgba(0,255,135,0.3)] outline-none transition-shadow duration-300 hover:shadow-[0_0_22px_rgba(0,255,135,0.42)] focus-visible:ring-2 focus-visible:ring-[#00FF87] focus-visible:ring-offset-2 focus-visible:ring-offset-[#020706]"
               >
                 Sign Up
@@ -240,6 +284,7 @@ export default function Navbar() {
           {/* Mobile Toggle */}
           <button
             type="button"
+<<<<<<< HEAD
             aria-label={
               isMobileMenuOpen
                 ? 'Close navigation menu'
@@ -250,6 +295,12 @@ export default function Navbar() {
             onClick={() =>
               setIsMobileMenuOpen((previous) => !previous)
             }
+=======
+            aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
+            onClick={() => setIsMobileMenuOpen((previous) => !previous)}
+>>>>>>> origin/main
             className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-slate-300 outline-none transition-all duration-200 hover:border-white/15 hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-[#00FF87]/30 md:hidden"
           >
             <span className="sr-only">
@@ -294,16 +345,23 @@ export default function Navbar() {
             >
               <div className="mx-auto max-w-7xl px-5 pb-5 pt-3 sm:px-6">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-2">
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
                   <div className="space-y-1">
                     {navItems.map((item) => {
                       const isActive =
                         item.path === '/'
                           ? location.pathname === '/'
                           : location.pathname === item.path ||
+<<<<<<< HEAD
                           location.pathname.startsWith(
                             `${item.path}/`
                           );
+=======
+                            location.pathname.startsWith(`${item.path}/`);
+>>>>>>> origin/main
 
                       return (
                         <motion.div
@@ -313,18 +371,34 @@ export default function Navbar() {
                           <Link
                             to={item.path}
                             onClick={closeMobileMenu}
+<<<<<<< HEAD
                             className={`flex items-center justify-between rounded-xl px-4 py-3.5 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[#00FF87]/30 ${isActive
                                 ? 'border border-white/10 bg-white/[0.05] text-white'
                                 : 'text-slate-300 hover:bg-white/[0.03] hover:text-white'
                               }`}
+=======
+                            className={`flex items-center justify-between rounded-xl px-4 py-3.5 text-sm font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[#00FF87]/30 ${
+                              isActive
+                                ? 'border border-white/10 bg-white/[0.05] text-white'
+                                : 'text-slate-300 hover:bg-white/[0.03] hover:text-white'
+                            }`}
+>>>>>>> origin/main
                           >
                             <span>{item.label}</span>
 
                             <span
+<<<<<<< HEAD
                               className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${isActive
                                   ? 'bg-[#00FF87] shadow-[0_0_8px_rgba(0,255,135,0.65)]'
                                   : 'bg-white/10'
                                 }`}
+=======
+                              className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
+                                isActive
+                                  ? 'bg-[#00FF87] shadow-[0_0_8px_rgba(0,255,135,0.65)]'
+                                  : 'bg-white/10'
+                              }`}
+>>>>>>> origin/main
                             />
                           </Link>
                         </motion.div>
@@ -332,7 +406,10 @@ export default function Navbar() {
                     })}
                   </div>
 
+<<<<<<< HEAD
                   {/* Mobile Auth */}
+=======
+>>>>>>> origin/main
                   <motion.div
                     variants={mobileItemVariants}
                     className="mt-3 border-t border-white/10 pt-3"
@@ -347,7 +424,11 @@ export default function Navbar() {
                       </Link>
 
                       <Link
+<<<<<<< HEAD
                         to="/register"
+=======
+                        to="/signup"
+>>>>>>> origin/main
                         onClick={closeMobileMenu}
                         className="inline-flex items-center justify-center rounded-full bg-[#00FF87] px-4 py-3 text-sm font-semibold text-[#020706] shadow-[0_0_15px_rgba(0,255,135,0.22)] outline-none transition-all duration-200 hover:shadow-[0_0_20px_rgba(0,255,135,0.36)] focus-visible:ring-2 focus-visible:ring-[#00FF87] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030A08]"
                       >
@@ -355,7 +436,10 @@ export default function Navbar() {
                       </Link>
                     </div>
                   </motion.div>
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/main
                 </div>
               </div>
             </motion.div>

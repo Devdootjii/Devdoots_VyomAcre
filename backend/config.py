@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     # silently trying to call the Gemini API with an empty key.
     GEMINI_API_KEY: str = ""
 
+    # --- Auth (Phase 1 — T1/T2/T3) ---
+    # Has a dev fallback (matches the PDF spec exactly) so local dev doesn't
+    # break, but MUST be overridden with a real secret in .env on Render —
+    # anyone who knows the default could forge valid tokens otherwise.
+    JWT_SECRET: str = "vyomacre-dev-secret-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRY_DAYS: int = 7
+
     # --- CORS ---
     # Comma-separated list of allowed origins in the .env file, e.g.
     # CORS_ORIGINS=http://localhost:5173,https://vyomacre.vercel.app
