@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-
-const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL ||
-    'https://devdoots-vyomacre-y0gr.onrender.com';
+import {
+    getOwnerLeaseRequests,
+    updateLeaseRequest,
+} from '../services/api';
 
 export default function OwnerInbox() {
     const [requests, setRequests] = useState([]);
@@ -36,14 +35,7 @@ export default function OwnerInbox() {
         setError('');
 
         try {
-            const response = await axios.get(
-                `${API_BASE_URL}/api/lease-requests`,
-                {
-                    params: {
-                        owner_id: phone,
-                    },
-                }
-            );
+            const response = await getOwnerLeaseRequests(phone);
 
             const data = response?.data?.data;
 
@@ -56,8 +48,10 @@ export default function OwnerInbox() {
             }
         } catch (apiError) {
             console.error('Failed to load lease requests:', apiError);
+
             setError(
                 apiError?.response?.data?.message ||
+                apiError?.response?.data?.detail ||
                 'Unable to load lease requests. Please try again.'
             );
         } finally {
@@ -70,12 +64,7 @@ export default function OwnerInbox() {
         setError('');
 
         try {
-            await axios.patch(
-                `${API_BASE_URL}/api/lease-requests/${requestId}`,
-                {
-                    status,
-                }
-            );
+            await updateLeaseRequest(requestId, status);
 
             setRequests((currentRequests) =>
                 currentRequests.map((request) =>
@@ -86,8 +75,10 @@ export default function OwnerInbox() {
             );
         } catch (apiError) {
             console.error('Failed to update lease request:', apiError);
+
             setError(
                 apiError?.response?.data?.message ||
+                apiError?.response?.data?.detail ||
                 `Unable to ${status.toLowerCase()} this request.`
             );
         } finally {
@@ -101,6 +92,7 @@ export default function OwnerInbox() {
                 <h2 className="text-2xl font-bold text-slate-800">
                     Owner Inbox
                 </h2>
+
                 <p className="mt-1 text-sm text-slate-500">
                     Manage lease requests from companies.
                 </p>
@@ -123,6 +115,7 @@ export default function OwnerInbox() {
                     <p className="font-medium text-slate-700">
                         No lease requests found.
                     </p>
+
                     <p className="mt-1 text-sm text-slate-500">
                         New company requests will appear here.
                     </p>
@@ -148,7 +141,9 @@ export default function OwnerInbox() {
                                 <p className="text-sm text-slate-600">
                                     Requested on:{' '}
                                     {request.created_at
-                                        ? new Date(request.created_at).toLocaleDateString()
+                                        ? new Date(
+                                            request.created_at
+                                        ).toLocaleDateString()
                                         : 'N/A'}
                                 </p>
 
@@ -168,7 +163,10 @@ export default function OwnerInbox() {
                                         request.status === 'accepted'
                                     }
                                     onClick={() =>
-                                        handleRequestAction(request.id, 'accepted')
+                                        handleRequestAction(
+                                            request.id,
+                                            'accepted'
+                                        )
                                     }
                                     className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                                 >
@@ -184,7 +182,10 @@ export default function OwnerInbox() {
                                         request.status === 'rejected'
                                     }
                                     onClick={() =>
-                                        handleRequestAction(request.id, 'rejected')
+                                        handleRequestAction(
+                                            request.id,
+                                            'rejected'
+                                        )
                                     }
                                     className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                                 >

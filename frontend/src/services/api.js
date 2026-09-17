@@ -4,7 +4,10 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   'https://devdoots-vyomacre-y0gr.onrender.com';
 
-// Axios ka centralized client jisme base configuration set hai
+// ============================================================================
+// AXIOS CLIENT
+// ============================================================================
+
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -13,10 +16,57 @@ const apiClient = axios.create({
 });
 
 // ============================================================================
-// EXISTING ENDPOINTS (DO NOT MODIFY)
+// JWT AUTHENTICATION
 // ============================================================================
 
-// Contract A: Roof Owner Onboarding (Aryan / Harsh)
+// Automatically attach JWT token to authenticated requests
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('vyomacre_token');
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+// ============================================================================
+// AUTH ENDPOINTS
+// ============================================================================
+
+export const loginUser = async (credentials) => {
+  const response = await apiClient.post('/api/auth/login', credentials);
+
+  const token = response?.data?.data?.token;
+  const user = response?.data?.data?.user;
+
+  if (token) {
+    localStorage.setItem('vyomacre_token', token);
+  }
+
+  if (user) {
+    localStorage.setItem(
+      'vyomacre_owner_data',
+      JSON.stringify({
+        owner_name: user.name,
+        phone_number: user.phone,
+        email: user.email,
+        role: user.role,
+      })
+    );
+  }
+
+  return response;
+};
+
+export const getCurrentUser = async () => {
+  return await apiClient.get('/api/auth/me');
+};
+
+// ============================================================================
+// ROOF OWNER ONBOARDING
+// ============================================================================
+
 export const submitRoofDetails = async (roofData) => {
   return await apiClient.post('/api/roofs/add', roofData);
 };
@@ -25,7 +75,31 @@ export const getOwnerRoofs = async (phoneNumber) => {
   return await apiClient.get(`/api/roofs?owner_id=${phoneNumber}`);
 };
 
-// Ritesh: Company Marketplace & Admin Radar Endpoints
+// ============================================================================
+// OWNER LEASE REQUESTS
+// ============================================================================
+
+export const getOwnerLeaseRequests = async (ownerPhone) => {
+  return await apiClient.get('/api/lease-requests', {
+    params: {
+      owner_id: ownerPhone,
+    },
+  });
+};
+
+export const updateLeaseRequest = async (requestId, status) => {
+  return await apiClient.patch(
+    `/api/lease-requests/${requestId}`,
+    {
+      status: status,
+    }
+  );
+};
+
+// ============================================================================
+// MARKETPLACE & ADMIN ENDPOINTS
+// ============================================================================
+
 export const getAllRoofs = async (params = {}) => {
   return await apiClient.get('/api/roofs', { params });
 };
@@ -42,36 +116,27 @@ export const createLeaseRequest = async (payload) => {
   return await apiClient.post('/api/lease-requests', payload);
 };
 
-
 // ============================================================================
-// NEW ENDPOINTS (DAY 10 & 11 TASKS)
+// AI CHATBOT
 // ============================================================================
 
-/**
- * VYOMACRE AI CHATBOT API INTEGRATION (Balram)
- * Ye function Divyansh ke backend endpoint /api/ai/ask ko hit karega.
- * API Contract: Request { "question": "..." } | Response { "status": "...", "data": { "answer": "..." } }
- * @param {string} question - User dwara poocha gaya sawaal.
- * @returns {object} - Backend se aane wala response (success/error state ke sath).
- */
 export const askAI = async (question) => {
   try {
-    // Axios apiClient ka use karke Divyansh ke endpoint par POST request bhejna
-    const response = await apiClient.post('/api/ai/ask', { 
-      question: question 
+    const response = await apiClient.post('/api/ai/ask', {
+      question: question,
     });
-    
-    // Axios automatically JSON parse karke response.data me daal deta hai
-    return response.data; 
+
+    return response.data;
   } catch (error) {
-    // Detailed error logging taaki debugging me aasaani ho
-    console.error("askAI API Request Failed:", error);
-    
-    // Standardized Error Envelope (UI crash hone se bachane ke liye fallback)
+    console.error('askAI API Request Failed:', error);
+
     return {
-      status: "error",
-      message: error.response?.data?.message || error.message || "Network error ya VyomAcre backend down hai.",
-      data: null
+      status: 'error',
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        'Network error ya VyomAcre backend down hai.',
+      data: null,
     };
   }
 };

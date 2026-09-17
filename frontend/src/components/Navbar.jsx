@@ -6,7 +6,7 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const brandLetters = "VyomAcre".split("");
 
   const handleLogoClick = (e) => {
@@ -22,20 +22,20 @@ export default function Navbar() {
     <nav className="w-full bg-[#030712]/90 backdrop-blur-xl border-b border-slate-800/80 fixed top-0 z-[50] transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          
+
           {/* FAR LEFT: Brand Logo with Interactive Pop-out Letters & Scroll-to-Top Handler */}
           <div className="flex-shrink-0 flex items-center">
-            <a 
-              href="/" 
+            <a
+              href="/"
               onClick={handleLogoClick}
-              id="brand-logo-interactive" 
+              id="brand-logo-interactive"
               className="flex items-center text-2xl font-bold tracking-wide cursor-pointer group py-2"
             >
               {brandLetters.map((letter, index) => (
                 <motion.span
                   key={index}
-                  whileHover={{ 
-                    scale: 1.35, 
+                  whileHover={{
+                    scale: 1.35,
                     y: -4,
                     filter: "drop-shadow(0 0 12px rgba(0, 255, 135, 0.9))"
                   }}
@@ -61,9 +61,11 @@ export default function Navbar() {
             <button className="text-sm font-medium text-slate-300 hover:text-white transition-colors px-3 py-2">
               Log In
             </button>
-            <motion.button 
+
+            <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => window.location.href = '/login'}
               className="text-sm font-semibold bg-gradient-to-r from-[#00FF87] to-[#00B8FF] text-slate-950 px-5 py-2.5 rounded-xl shadow-[0_0_20px_rgba(0,255,135,0.3)] hover:shadow-[0_0_25px_rgba(0,184,255,0.5)] transition-all"
             >
               Sign Up
@@ -72,7 +74,7 @@ export default function Navbar() {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center">
-            <button 
+            <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="text-slate-300 hover:text-white focus:outline-none p-2"
             >
@@ -90,7 +92,7 @@ export default function Navbar() {
 
       {/* Mobile Menu Dropdown */}
       {isMobileMenuOpen && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="md:hidden bg-[#0B1120] border-b border-slate-800 px-4 pt-2 pb-6 space-y-3"

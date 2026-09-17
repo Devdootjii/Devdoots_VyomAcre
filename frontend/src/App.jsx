@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import Login from './components/Login';
 import {
   BrowserRouter,
   Routes,
@@ -202,12 +204,7 @@ export default function App() {
 
             <Route
               path="/login"
-              element={
-                <PlaceholderPage
-                  title="Login"
-                  description="Login module will be connected to the authentication API."
-                />
-              }
+              element={<Login />}
             />
 
 
