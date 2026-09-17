@@ -31,7 +31,6 @@ export const getOwnerRoofs = async (phoneNumber) => api.get(`/api/roofs?owner_id
 export const getAllRoofs = async (params = {}) => api.get('/api/roofs', { params });
 export const getVerifiedRoofs = async () => api.get('/api/roofs');
 
-// Direct database sync for Marketplace listings
 export const getFilteredRoofs = async (filters = {}) => {
   const queryParams = new URLSearchParams();
   if (filters.city && filters.city !== 'ALL') queryParams.append('city', filters.city);
@@ -46,7 +45,16 @@ export const getFilteredRoofs = async (filters = {}) => {
 export const getScannedZones = async () => api.get('/api/zones/scanned');
 export const createLeaseRequest = async (payload) => api.post('/api/lease-requests', payload);
 
-// Phase 2: Seeker Dashboard API
-export const getSeekerLeaseRequests = async () => api.get('/api/lease-requests');
+// Phase 2: Seeker Dashboard API with Fallback Handling
+export const getSeekerLeaseRequests = async () => {
+  let company = 'Devdoots CleanTech';
+  try {
+    const user = JSON.parse(localStorage.getItem('vyomacre_user') || '{}');
+    company = user.company_name || company;
+  } catch (e) {}
+
+  return api.get(`/api/lease-requests?company_name=${encodeURIComponent(company)}`)
+    .catch(() => api.get('/api/lease-requests'));
+};
 
 export default api;
