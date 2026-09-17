@@ -40,11 +40,13 @@ export const getFilteredRoofs = async (filters = {}) => {
   if (filters.max_area) queryParams.append('max_area', filters.max_area);
 
   const qs = queryParams.toString();
-  // Call /api/roofs to get all submitted properties
   return api.get(qs ? `/api/roofs?${qs}` : '/api/roofs');
 };
 
 export const getScannedZones = async () => api.get('/api/zones/scanned');
 export const createLeaseRequest = async (payload) => api.post('/api/lease-requests', payload);
+
+// Phase 2: Seeker Dashboard API
+export const getSeekerLeaseRequests = async () => api.get('/api/lease-requests');
 
 export default api;

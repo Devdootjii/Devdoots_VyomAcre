@@ -4,17 +4,41 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getFilteredRoofs, getVerifiedRoofs, getScannedZones, createLeaseRequest } from '../services/api';
 
-// Status-based colored SVG markers
+// Accurate status resolver: Prioritizes manual approval over automated flags
+const getPropertyStatus = (prop) => {
+  const s = String(prop.status || '').toLowerCase();
+  const vs = String(prop.verification_status || '').toLowerCase();
+
+  if (s === 'approved' || vs === 'approved' || s === 'verified' || vs === 'verified' || prop.is_verified === true) {
+    return 'approved';
+  }
+  if (s === 'flagged' || vs === 'flagged' || s === 'rejected' || vs === 'rejected' || vs.includes('fail')) {
+    return 'flagged';
+  }
+  return 'pending';
+};
+
+// High-Tech Radar Scanning Pins (Blue = Verified, Red = Flagged, Yellow = Pending)
 const createStatusPin = (status) => {
-  let pinColor = '#2563eb'; // Verified / Approved: Blue
+  let pinColor = '#eab308'; // Default Pending: Yellow
+  if (status === 'approved') pinColor = '#2563eb'; // Verified: Blue
   if (status === 'flagged') pinColor = '#ef4444'; // Flagged: Red
-  if (status === 'pending_verification' || status === 'PENDING') pinColor = '#eab308'; // Pending: Yellow
 
   return L.divIcon({
-    className: 'custom-status-pin',
-    html: `<div style="background-color: ${pinColor}; width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid white; box-shadow: 0 0 6px rgba(0,0,0,0.6);"></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8]
+    className: 'custom-radar-pin',
+    html: `
+      <div style="position: relative; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
+        <!-- Animated Radar Wave Pulse 1 -->
+        <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid ${pinColor}; background-color: ${pinColor}; opacity: 0.35; animation: radarPulse 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;"></div>
+        <!-- Animated Radar Wave Pulse 2 -->
+        <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid ${pinColor}; background-color: ${pinColor}; opacity: 0.35; animation: radarPulse 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite 0.75s;"></div>
+        <!-- Glowing Core Center -->
+        <div style="position: relative; width: 14px; height: 14px; border-radius: 50%; background-color: ${pinColor}; border: 2.5px solid #ffffff; box-shadow: 0 0 10px ${pinColor}; animation: coreGlow 2s ease-in-out infinite;"></div>
+      </div>
+    `,
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+    popupAnchor: [0, -18]
   });
 };
 
@@ -32,9 +56,12 @@ const MapDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // T3: Dynamic Filters
+  // Filters
   const [filters, setFilters] = useState({ city: 'ALL', roof_type: 'ALL', min_area: '', max_area: '' });
   const [activeFilterCount, setActiveFilterCount] = useState(0);
+
+  // Phase 2: Only Satellite Verified Toggle
+  const [onlyVerified, setOnlyVerified] = useState(false);
 
   const [radarActive, setRadarActive] = useState(true);
   const [leaseSubmitting, setLeaseSubmitting] = useState(null);
@@ -56,30 +83,20 @@ const MapDashboard = () => {
       if (roofsRes.status === 'fulfilled' && roofsRes.value?.data) {
         const raw = roofsRes.value.data;
         let list = [];
-        if (Array.isArray(raw)) {
-          list = raw;
-        } else if (raw.data && Array.isArray(raw.data.roofs)) {
-          list = raw.data.roofs;
-        } else if (Array.isArray(raw.roofs)) {
-          list = raw.roofs;
-        } else if (Array.isArray(raw.data)) {
-          list = raw.data;
-        }
+        if (Array.isArray(raw)) list = raw;
+        else if (raw.data && Array.isArray(raw.data.roofs)) list = raw.data.roofs;
+        else if (Array.isArray(raw.roofs)) list = raw.roofs;
+        else if (Array.isArray(raw.data)) list = raw.data;
         setProperties(list);
       } else {
         const fallbackRes = await getVerifiedRoofs().catch(() => null);
         if (fallbackRes?.data) {
           const raw = fallbackRes.data;
           let list = [];
-          if (Array.isArray(raw)) {
-            list = raw;
-          } else if (raw.data && Array.isArray(raw.data.roofs)) {
-            list = raw.data.roofs;
-          } else if (Array.isArray(raw.roofs)) {
-            list = raw.roofs;
-          } else if (Array.isArray(raw.data)) {
-            list = raw.data;
-          }
+          if (Array.isArray(raw)) list = raw;
+          else if (raw.data && Array.isArray(raw.data.roofs)) list = raw.data.roofs;
+          else if (Array.isArray(raw.roofs)) list = raw.roofs;
+          else if (Array.isArray(raw.data)) list = raw.data;
           setProperties(list);
         } else {
           setProperties([]);
@@ -89,15 +106,10 @@ const MapDashboard = () => {
       if (zonesRes.status === 'fulfilled' && zonesRes.value?.data) {
         const rawZones = zonesRes.value.data;
         let zoneList = [];
-        if (Array.isArray(rawZones)) {
-          zoneList = rawZones;
-        } else if (rawZones.data && Array.isArray(rawZones.data.zones)) {
-          zoneList = rawZones.data.zones;
-        } else if (Array.isArray(rawZones.zones)) {
-          zoneList = rawZones.zones;
-        } else if (Array.isArray(rawZones.data)) {
-          zoneList = rawZones.data;
-        }
+        if (Array.isArray(rawZones)) zoneList = rawZones;
+        else if (rawZones.data && Array.isArray(rawZones.data.zones)) zoneList = rawZones.data.zones;
+        else if (Array.isArray(rawZones.zones)) zoneList = rawZones.zones;
+        else if (Array.isArray(rawZones.data)) zoneList = rawZones.data;
         setScannedZones(zoneList);
       } else {
         setScannedZones([]);
@@ -125,6 +137,7 @@ const MapDashboard = () => {
   const resetFilters = () => {
     setFilters({ city: 'ALL', roof_type: 'ALL', min_area: '', max_area: '' });
     setActiveFilterCount(0);
+    setOnlyVerified(false);
   };
 
   const locateUser = () => {
@@ -138,23 +151,36 @@ const MapDashboard = () => {
 
   const handleLeaseRequest = async (roofId, fullOwnerName) => {
     const token = localStorage.getItem('vyomacre_token');
+    
     if (!token) {
-      alert('Authentication required. Only registered Seekers can dispatch lease requests.');
+      sessionStorage.setItem('redirect_after_login', window.location.pathname);
+      alert('Authentication required. Redirecting to login...');
+      window.location.href = '/login';
       return;
     }
 
-    setLeaseSubmitting(roofId);
+    let seekerCompany = 'Devdoots Solar';
+    try {
+      const storedUser = localStorage.getItem('vyomacre_user');
+      if (storedUser) {
+        const userObj = JSON.parse(storedUser);
+        seekerCompany = userObj.company_name || userObj.full_name || userObj.email || seekerCompany;
+      }
+    } catch (e) {
+      console.warn('Could not parse user', e);
+    }
 
+    setLeaseSubmitting(roofId);
     try {
       const payload = {
         roof_id: String(roofId),
-        company_name: "Devdoots Solar"
+        company_name: seekerCompany
       };
 
       await createLeaseRequest(payload);
       alert(`Success: Lease request dispatched for ${fullOwnerName?.split(' ')[0] || 'Owner'}'s property!`);
     } catch (error) {
-      console.error("Lease Error Response:", error.response?.data);
+      console.error('Lease Error Response:', error.response?.data);
       const detailMsg = error.response?.data?.message || error.response?.data?.detail || 'Request failed';
       alert(`Error: ${typeof detailMsg === 'string' ? detailMsg : JSON.stringify(detailMsg)}`);
     } finally {
@@ -162,14 +188,39 @@ const MapDashboard = () => {
     }
   };
 
+  // Filter properties cleanly using normalized status
+  const displayedProperties = properties.filter((prop) => {
+    if (!onlyVerified) return true;
+    return getPropertyStatus(prop) === 'approved';
+  });
+
   return (
-    <div className="w-full h-[720px] flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden font-sans shadow-2xl">
+    <div className="w-full h-[720px] flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden font-sans shadow-2xl relative">
       
-      {/* T3: Dynamic Search & Filter Bar */}
+      {/* Dynamic Keyframe Injection for Scanning Ripple Animation */}
+      <style>{`
+        @keyframes radarPulse {
+          0% { transform: scale(0.6); opacity: 0.9; }
+          70% { transform: scale(2.4); opacity: 0; }
+          100% { transform: scale(2.6); opacity: 0; }
+        }
+        @keyframes coreGlow {
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 3px currentColor); }
+          50% { transform: scale(1.18); filter: drop-shadow(0 0 8px currentColor); }
+        }
+        .custom-radar-pin {
+          background: transparent !important;
+          border: none !important;
+        }
+      `}</style>
+
+      {/* Filter Bar & Controls */}
       <div className="p-3 bg-slate-950 border-b border-slate-800 flex flex-wrap items-end gap-3">
         <div>
           <h2 className="text-lg font-black text-blue-400">VyomAcre Map</h2>
-          <p className="text-[10px] text-slate-400 mt-0.5">{activeFilterCount} filters active | {properties.length} roofs found</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            {activeFilterCount} filters active | {displayedProperties.length} roofs found
+          </p>
         </div>
 
         <div className="flex flex-col">
@@ -200,6 +251,17 @@ const MapDashboard = () => {
           <label className="text-[9px] text-slate-400 uppercase font-bold">Min Area</label>
           <input type="number" name="min_area" value={filters.min_area} onChange={handleFilterChange} placeholder="0" className="w-20 bg-slate-800 text-white text-xs px-2 py-1.5 rounded outline-none border border-slate-700" />
         </div>
+
+        <button
+          onClick={() => setOnlyVerified(!onlyVerified)}
+          className={`text-xs px-3 py-1.5 rounded border font-semibold transition ${
+            onlyVerified 
+              ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-900/50' 
+              : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+          }`}
+        >
+          {onlyVerified ? '✓ Only Verified' : 'Only Satellite Verified'}
+        </button>
 
         <button onClick={resetFilters} className="text-xs bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 px-3 py-1.5 rounded border border-slate-700 transition">
           Reset
@@ -236,13 +298,13 @@ const MapDashboard = () => {
               return null;
             })}
 
-            {/* T1: Polished Map Markers with Status Colors & Overlap Separation */}
-            {properties.map((property, idx) => {
+            {/* Pins Render with Animated Wave and Status Mapping */}
+            {displayedProperties.map((property, idx) => {
               if (property.latitude && property.longitude) {
-                const status = (property.verification_status || property.status || 'pending_verification').toLowerCase();
+                const status = getPropertyStatus(property);
                 const firstName = property.owner_name ? property.owner_name.split(' ')[0] : 'Owner';
                 
-                // Micro-offset for identical coordinates so all stacked markers show separately
+                // Micro-offset for identical coordinates
                 const offsetLat = Number(property.latitude) + (idx % 3 === 0 ? 0.0012 * Math.floor(idx / 3) : -0.0012 * idx);
                 const offsetLng = Number(property.longitude) + (idx % 2 === 0 ? 0.0015 * idx : -0.0015 * Math.floor(idx / 2));
 
@@ -257,13 +319,13 @@ const MapDashboard = () => {
                         <div className="flex justify-between items-start mb-1">
                           <strong className="text-blue-900 text-sm capitalize">{firstName}</strong>
                           <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                            status === 'verified' || status === 'approved'
+                            status === 'approved'
                               ? 'bg-green-100 text-green-700' 
-                              : status === 'flagged' 
+                              : status === 'flagged'
                               ? 'bg-red-100 text-red-700' 
                               : 'bg-amber-100 text-amber-700'
                           }`}>
-                            {status === 'verified' || status === 'approved' ? 'Verified' : status === 'flagged' ? 'Flagged' : 'Pending'}
+                            {status === 'approved' ? 'Verified' : status === 'flagged' ? 'Flagged' : 'Pending'}
                           </span>
                         </div>
                         <p className="text-slate-600 mt-1">Area: <strong className="text-slate-900">{property.area_sqft || property.estimated_area_sqft || 0} sq ft</strong></p>
@@ -299,25 +361,28 @@ const MapDashboard = () => {
 
           {errorMsg ? (
             <p className="text-xs text-red-400 text-center py-6 bg-red-900/20 rounded border border-red-900/50">{errorMsg}</p>
-          ) : properties.length === 0 && !loading ? (
+          ) : displayedProperties.length === 0 && !loading ? (
             <p className="text-xs text-slate-500 text-center py-6 border border-dashed border-slate-800 rounded">
-              Abhi koi verified roof nahi hai. Naye roofs add hote hi yahan dikhenge.
+              {onlyVerified 
+                ? 'No verified roofs found for selected criteria.' 
+                : 'Abhi koi verified roof nahi hai. Naye roofs add hote hi yahan dikhenge.'}
             </p>
           ) : (
-            properties.map((property) => {
-              const status = (property.verification_status || property.status || 'pending_verification').toLowerCase();
+            displayedProperties.map((property) => {
+              const status = getPropertyStatus(property);
+
               return (
                 <div key={property.id} className="bg-slate-900 border border-slate-800 rounded-lg p-3 mb-2.5">
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-[10px] text-slate-500 block">#{String(property.id).substring(0, 8)}</span>
                     <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                      status === 'verified' || status === 'approved'
+                      status === 'approved'
                         ? 'bg-green-900/40 text-green-400 border border-green-800' 
-                        : status === 'flagged' 
+                        : status === 'flagged'
                         ? 'bg-red-900/40 text-red-400 border border-red-800' 
                         : 'bg-amber-900/40 text-amber-400 border border-amber-800'
                     }`}>
-                      {status}
+                      {status === 'approved' ? 'Verified' : status === 'flagged' ? 'Flagged' : 'Pending'}
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-white capitalize">{property.owner_name ? property.owner_name.split(' ')[0] : 'Owner'}</h4>
