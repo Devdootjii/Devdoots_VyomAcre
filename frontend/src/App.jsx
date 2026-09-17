@@ -1,23 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import Login from './components/Login';
 import {
   BrowserRouter,
   Routes,
   Route,
-  Link,
-  useParams,
 } from 'react-router-dom';
 
+import { UIProvider } from './context/UIContext';
+
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import GeminiChatbot from './components/GeminiChatbot';
+
 import VyomLanding from './components/VyomLanding';
-import LandingPage from './components/LandingPage';
+import Login from './components/Login';
+
 import OwnerForm from './components/OwnerForm';
 import OwnerInbox from './components/OwnerInbox';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 import MapDashboard from './components/MapDashboard';
-
-import { UIProvider } from './context/UIContext';
 
 
 // ============================================================
@@ -26,59 +26,46 @@ import { UIProvider } from './context/UIContext';
 
 function PlaceholderPage({ title, description }) {
   return (
-    <div className="min-h-screen bg-slate-100 px-6 pt-32 pb-12">
-      <div className="mx-auto max-w-3xl rounded-3xl bg-white p-8 text-center shadow-xl">
-        <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-          VyomAcre
-        </p>
+    <main className="min-h-screen bg-slate-100 px-6 pt-28 pb-12 text-slate-900">
+      <div className="mx-auto max-w-4xl rounded-2xl bg-white p-8 shadow-sm">
 
-        <h1 className="mt-3 text-3xl font-black text-slate-900">
+        <h1 className="text-3xl font-bold text-slate-800">
           {title}
         </h1>
 
-        <p className="mt-4 text-slate-600">
+        <p className="mt-3 text-slate-600">
           {description}
         </p>
 
-        <Link
-          to="/"
-          className="mt-6 inline-block rounded-xl bg-slate-900 px-5 py-3 font-semibold text-white hover:bg-slate-700"
-        >
-          Back to Home
-        </Link>
       </div>
-    </div>
+    </main>
   );
 }
 
 
 // ============================================================
-// PROPERTY DETAILS PAGE
+// PROPERTY DETAILS
 // ============================================================
 
 function PropertyDetails() {
-  const { id } = useParams();
-
   return (
     <PlaceholderPage
-      title={`Property Details #${id}`}
-      description="Property details page is ready for the property module."
+      title="Property Details"
+      description="Property details page will be connected to the marketplace property module."
     />
   );
 }
 
 
 // ============================================================
-// AGREEMENT DETAILS PAGE
+// AGREEMENT DETAILS
 // ============================================================
 
 function AgreementDetails() {
-  const { id } = useParams();
-
   return (
     <PlaceholderPage
-      title={`Agreement #${id}`}
-      description="Agreement page is ready for the agreement module."
+      title="Agreement Details"
+      description="Agreement details page will be connected to the lease agreement module."
     />
   );
 }
@@ -90,41 +77,32 @@ function AgreementDetails() {
 
 function NotFound() {
   return (
-    <div className="min-h-screen bg-slate-100 px-6 pt-32 pb-12">
-      <div className="mx-auto max-w-2xl rounded-3xl bg-white p-10 text-center shadow-xl">
-        <p className="text-7xl font-black text-slate-900">
+    <main className="min-h-screen bg-slate-100 px-6 pt-28 pb-12 text-slate-900">
+      <div className="mx-auto max-w-4xl text-center">
+
+        <p className="text-sm font-semibold uppercase tracking-widest text-emerald-600">
           404
         </p>
 
-        <h1 className="mt-4 text-3xl font-black text-slate-900">
+        <h1 className="mt-3 text-4xl font-extrabold text-slate-800">
           Page Not Found
         </h1>
 
-        <p className="mt-3 text-slate-600">
+        <p className="mt-4 text-slate-600">
           The page you are looking for does not exist.
         </p>
 
-        <Link
-          to="/"
-          className="mt-6 inline-block rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white hover:bg-sky-700"
-        >
-          Go Home
-        </Link>
       </div>
-    </div>
+    </main>
   );
 }
 
 
 // ============================================================
-// MAIN APP
+// OWNER PORTAL
 // ============================================================
 
-export default function App() {
-
-  // ----------------------------------------------------------
-  // OWNER DATA
-  // ----------------------------------------------------------
+function OwnerPortal() {
 
   const [ownerData, setOwnerData] = useState(() => {
     try {
@@ -174,268 +152,468 @@ export default function App() {
 
 
   // ----------------------------------------------------------
-  // APP UI
+  // OWNER PORTAL UI
   // ----------------------------------------------------------
 
   return (
-    <UIProvider>
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
 
-      <BrowserRouter>
+      <div className="mx-auto max-w-7xl">
 
-        <div className="min-h-screen bg-slate-950 font-sans">
+        <div className="mb-8">
 
-          <Navbar />
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            Owner Portal
+          </p>
 
-          <Routes>
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            Manage Your Space
+          </h1>
 
-            {/* ==================================================
-                HOME
-            ================================================== */}
-
-            <Route
-              path="/"
-              element={<VyomLanding />}
-            />
-
-
-            {/* ==================================================
-                LOGIN
-            ================================================== */}
-
-            <Route
-              path="/login"
-              element={<Login />}
-            />
-
-
-            {/* ==================================================
-                OWNER REGISTRATION
-            ================================================== */}
-
-            <Route
-              path="/register"
-              element={
-                <div className="min-h-screen bg-slate-100 px-6 pt-28 pb-12">
-
-                  <div className="mx-auto flex max-w-3xl flex-col gap-8">
-
-                    <h2 className="text-center text-3xl font-extrabold text-slate-800">
-                      Registration Portal
-                    </h2>
-
-                    <OwnerForm
-                      onSubmitSuccess={handleOwnerSubmitSuccess}
-                    />
-
-                    <OwnerStatusDashboard
-                      ownerData={ownerData}
-                    />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                OWNER DASHBOARD
-            ================================================== */}
-
-            <Route
-              path="/owner-dashboard"
-              element={
-                <div className="min-h-screen bg-slate-100 px-6 pt-28 pb-12">
-
-                  <div className="mx-auto max-w-7xl">
-
-                    <OwnerStatusDashboard
-                      ownerData={ownerData}
-                    />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                OWNER INBOX
-            ================================================== */}
-
-            <Route
-              path="/owner-inbox"
-              element={
-                <div className="min-h-screen bg-slate-100 px-4 pt-28 pb-12 text-slate-900 sm:px-6">
-
-                  <div className="mx-auto max-w-3xl">
-
-                    <OwnerInbox />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                SEEKER DASHBOARD
-            ================================================== */}
-
-            <Route
-              path="/seeker-dashboard"
-              element={
-                <PlaceholderPage
-                  title="Seeker Dashboard"
-                  description="Seeker dashboard will be connected to the marketplace and lease-request modules."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                ADMIN DASHBOARD
-            ================================================== */}
-
-            <Route
-              path="/admin"
-              element={
-                <PlaceholderPage
-                  title="Admin Dashboard"
-                  description="Admin dashboard is reserved for the administration module."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                COMPANY MARKETPLACE
-            ================================================== */}
-
-            <Route
-              path="/properties"
-              element={
-                <div className="min-h-screen bg-slate-100 px-6 pt-28 pb-12">
-
-                  <div className="mx-auto max-w-7xl">
-
-                    <h2 className="mb-8 text-center text-3xl font-extrabold text-slate-800">
-                      Company Marketplace
-                    </h2>
-
-                    <MapDashboard />
-
-                  </div>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                PROPERTY DETAILS
-            ================================================== */}
-
-            <Route
-              path="/property/:id"
-              element={<PropertyDetails />}
-            />
-
-
-            {/* ==================================================
-                AGREEMENT
-            ================================================== */}
-
-            <Route
-              path="/agreement/:id"
-              element={<AgreementDetails />}
-            />
-
-
-            {/* ==================================================
-                LEGACY / BACKUP VIEW
-            ================================================== */}
-
-            <Route
-              path="/legacy"
-              element={
-                <div className="min-h-screen bg-slate-100 pt-24">
-
-                  <LandingPage />
-
-                  <main className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-12 md:grid-cols-2">
-
-                    <section
-                      id="owner-form"
-                      className="flex flex-col gap-8"
-                    >
-
-                      <OwnerForm
-                        onSubmitSuccess={handleOwnerSubmitSuccess}
-                      />
-
-                      <OwnerStatusDashboard
-                        ownerData={ownerData}
-                      />
-
-                    </section>
-
-                    <MapDashboard />
-
-                  </main>
-
-                </div>
-              }
-            />
-
-
-            {/* ==================================================
-                ABOUT
-            ================================================== */}
-
-            <Route
-              path="/about"
-              element={
-                <PlaceholderPage
-                  title="About VyomAcre"
-                  description="About VyomAcre page is coming soon."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                HELP
-            ================================================== */}
-
-            <Route
-              path="/help"
-              element={
-                <PlaceholderPage
-                  title="Help Center"
-                  description="VyomAcre Help Center is coming soon."
-                />
-              }
-            />
-
-
-            {/* ==================================================
-                404
-            ================================================== */}
-
-            <Route
-              path="*"
-              element={<NotFound />}
-            />
-
-          </Routes>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            List your rooftop, track its verification status, and manage
+            incoming opportunities from one place.
+          </p>
 
         </div>
 
-      </BrowserRouter>
 
-    </UIProvider>
+        <div className="space-y-8">
+
+          <OwnerForm
+            onSubmitSuccess={handleOwnerSubmitSuccess}
+          />
+
+          <OwnerStatusDashboard
+            ownerData={ownerData}
+          />
+
+        </div>
+
+      </div>
+
+    </main>
   );
-} 
+}
+
+
+// ============================================================
+// SIGNUP / REGISTER PAGE
+// ============================================================
+
+function RegisterPage() {
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+
+      <div className="mx-auto max-w-4xl">
+
+        <div className="mb-8">
+
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            VyomAcre
+          </p>
+
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            List Your Property
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            Add your rooftop or available space to the VyomAcre platform.
+          </p>
+
+        </div>
+
+        <OwnerForm />
+
+      </div>
+
+    </main>
+  );
+}
+
+
+// ============================================================
+// OWNER INBOX PAGE
+// ============================================================
+
+function OwnerInboxPage() {
+
+  return (
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+
+      <div className="mx-auto max-w-4xl">
+
+        <div className="mb-8">
+
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            Marketplace / Requests
+          </p>
+
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            Lease Requests
+          </h1>
+
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
+            Review and manage incoming lease requests from businesses.
+          </p>
+
+        </div>
+
+        <OwnerInbox />
+
+      </div>
+
+    </main>
+  );
+}
+
+
+// ============================================================
+// LEGACY PAGE
+// ============================================================
+
+function LegacyPage() {
+
+  const [ownerData, setOwnerData] = useState(() => {
+
+    try {
+
+      const savedOwnerData =
+        localStorage.getItem('vyomacre_owner_data');
+
+      if (savedOwnerData) {
+        return JSON.parse(savedOwnerData);
+      }
+
+      return null;
+
+    } catch (error) {
+
+      console.error(
+        'Failed to load owner data from localStorage:',
+        error
+      );
+
+      return null;
+    }
+
+  });
+
+
+  const handleOwnerSubmitSuccess = (submittedData) => {
+
+    setOwnerData({
+      ...submittedData,
+      status: 'Pending',
+    });
+
+  };
+
+
+  useEffect(() => {
+
+    if (ownerData) {
+
+      localStorage.setItem(
+        'vyomacre_owner_data',
+        JSON.stringify(ownerData)
+      );
+
+    }
+
+  }, [ownerData]);
+
+
+  return (
+
+    <main className="min-h-screen bg-[#020706] px-5 pb-16 pt-28 text-white sm:px-6 lg:px-8">
+
+      <div className="mx-auto max-w-7xl">
+
+        <div className="mb-12">
+
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#00FF87]">
+            Legacy View
+          </p>
+
+          <h1 className="mt-2 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
+            VyomAcre Platform
+          </h1>
+
+        </div>
+
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+
+          <section
+            id="owner-form"
+            className="flex flex-col gap-8"
+          >
+
+            <OwnerForm
+              onSubmitSuccess={handleOwnerSubmitSuccess}
+            />
+
+            <OwnerStatusDashboard
+              ownerData={ownerData}
+            />
+
+          </section>
+
+
+          <section className="min-w-0">
+
+            <MapDashboard />
+
+          </section>
+
+        </div>
+
+      </div>
+
+    </main>
+
+  );
+}
+
+
+// ============================================================
+// MAIN APP CONTENT
+// ============================================================
+
+function AppContent() {
+
+  return (
+
+    <div className="min-h-screen bg-[#020706] font-sans text-white selection:bg-[#00FF87]/25 selection:text-white">
+
+      <Navbar />
+
+
+      <Routes>
+
+        {/* ====================================================
+            HOME
+        ==================================================== */}
+
+        <Route
+          path="/"
+          element={<VyomLanding />}
+        />
+
+
+        {/* ====================================================
+            LOGIN
+        ==================================================== */}
+
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+
+        {/* ====================================================
+            SIGNUP
+        ==================================================== */}
+
+        <Route
+          path="/signup"
+          element={<RegisterPage />}
+        />
+
+
+        {/* ====================================================
+            REGISTER
+        ==================================================== */}
+
+        <Route
+          path="/register"
+          element={<RegisterPage />}
+        />
+
+
+        {/* ====================================================
+            OWNER DASHBOARD
+        ==================================================== */}
+
+        <Route
+          path="/owner-dashboard"
+          element={<OwnerPortal />}
+        />
+
+
+        {/* Backward-compatible owner portal */}
+
+        <Route
+          path="/portal"
+          element={<OwnerPortal />}
+        />
+
+
+        {/* ====================================================
+            OWNER INBOX
+        ==================================================== */}
+
+        <Route
+          path="/owner-inbox"
+          element={<OwnerInboxPage />}
+        />
+
+
+        {/* ====================================================
+            SEEKER DASHBOARD
+        ==================================================== */}
+
+        <Route
+          path="/seeker-dashboard"
+          element={
+            <PlaceholderPage
+              title="Seeker Dashboard"
+              description="Seeker dashboard will be connected to the marketplace and lease-request modules."
+            />
+          }
+        />
+
+
+        {/* ====================================================
+            ADMIN
+        ==================================================== */}
+
+        <Route
+          path="/admin"
+          element={
+            <PlaceholderPage
+              title="Admin Dashboard"
+              description="Admin dashboard is reserved for the administration module."
+            />
+          }
+        />
+
+
+        {/* ====================================================
+            PROPERTIES
+        ==================================================== */}
+
+        <Route
+          path="/properties"
+          element={
+            <div className="min-h-screen bg-slate-100 px-6 pt-28 pb-12">
+
+              <div className="mx-auto max-w-7xl">
+
+                <h2 className="mb-8 text-center text-3xl font-extrabold text-slate-800">
+                  Company Marketplace
+                </h2>
+
+                <MapDashboard />
+
+              </div>
+
+            </div>
+          }
+        />
+
+
+        {/* ====================================================
+            PROPERTY DETAILS
+        ==================================================== */}
+
+        <Route
+          path="/property/:id"
+          element={<PropertyDetails />}
+        />
+
+
+        {/* ====================================================
+            AGREEMENT
+        ==================================================== */}
+
+        <Route
+          path="/agreement/:id"
+          element={<AgreementDetails />}
+        />
+
+
+        {/* ====================================================
+            ABOUT
+        ==================================================== */}
+
+        <Route
+          path="/about"
+          element={
+            <PlaceholderPage
+              title="About VyomAcre"
+              description="About VyomAcre page is coming soon."
+            />
+          }
+        />
+
+
+        {/* ====================================================
+            HELP
+        ==================================================== */}
+
+        <Route
+          path="/help"
+          element={
+            <PlaceholderPage
+              title="Help Center"
+              description="VyomAcre Help Center is coming soon."
+            />
+          }
+        />
+
+
+        {/* ====================================================
+            LEGACY
+        ==================================================== */}
+
+        <Route
+          path="/legacy"
+          element={<LegacyPage />}
+        />
+
+
+        {/* ====================================================
+            404
+        ==================================================== */}
+
+        <Route
+          path="*"
+          element={<NotFound />}
+        />
+
+      </Routes>
+
+
+      <Footer />
+
+      <GeminiChatbot />
+
+    </div>
+  );
+}
+
+
+// ============================================================
+// APP ROOT
+// ============================================================
+
+function App() {
+
+  return (
+
+    <BrowserRouter>
+
+      <UIProvider>
+
+        <AppContent />
+
+      </UIProvider>
+
+    </BrowserRouter>
+  );
+}
+
+
+export default App; 
