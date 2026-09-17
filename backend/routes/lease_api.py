@@ -25,6 +25,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from database import get_db
+from auth_dependency import require_owner, require_seeker
+from auth_models import User
 from models import LeaseRequest, LeaseStatusEnum, RoofListing, RoofStatusEnum
 from schemas import LeaseRequestCreate, LeaseRequestOut, LeaseRequestStatusUpdate
 from utils.response_helper import error_response, success_response
@@ -35,8 +37,23 @@ router = APIRouter(prefix="/api/lease-requests", tags=["Lease Requests"])
 
 
 @router.post("")
-def create_lease_request(payload: LeaseRequestCreate, db: Session = Depends(get_db)):
-    """A company sends a lease request for a specific roof."""
+def create_lease_request(
+    payload: LeaseRequestCreate,
+    current_user: User = Depends(require_seeker),
+    db: Session = Depends(get_db),
+):
+    """
+    A company (seeker account) sends a lease request for a specific roof.
+
+    T3 note: unlike RoofListing's owner_name/phone_number (now derived from
+    the token, see roof_api.py), `company_name` stays a client-supplied
+    field here. The User model only has a personal `name`, no separate
+    "company name" — a seeker's account holder and the company they're
+    requesting on behalf of aren't necessarily the same string, so
+    overriding this with current_user.name would be a real UX regression,
+    not just a security tightening. The role gate (require_seeker) still
+    ensures only seeker accounts can call this at all.
+    """
     try:
         roof = db.query(RoofListing).filter(RoofListing.id == payload.roof_id).first()
         if roof is None:
@@ -118,10 +135,16 @@ def get_lease_requests(
 def update_lease_request_status(
     lease_request_id: uuid.UUID,
     payload: LeaseRequestStatusUpdate,
+    current_user: User = Depends(require_owner),
     db: Session = Depends(get_db),
 ):
     """
     Owner accepts or rejects a pending lease request.
+
+    T3: gated behind require_owner, plus an explicit ownership check below —
+    being *an* owner isn't enough, they must own the specific roof this
+    lease request is for. Without that second check, any owner account
+    could accept/reject requests on anyone else's roof.
 
     Fix 7 (Divyansh's fix list): accepting a request now also marks the
     underlying roof's admin `status` as "leased" — previously the lease
@@ -138,12 +161,18 @@ def update_lease_request_status(
                 error_details={"lease_request_id": str(lease_request_id)},
             )
 
+        roof = db.query(RoofListing).filter(RoofListing.id == lease_request.roof_id).first()
+
+        if roof is None or roof.phone_number != current_user.phone:
+            return error_response(
+                message="You can only manage lease requests for your own roofs.",
+                code=403,
+            )
+
         lease_request.status = LeaseStatusEnum(payload.status.value)
 
         if lease_request.status == LeaseStatusEnum.accepted:
-            roof = db.query(RoofListing).filter(RoofListing.id == lease_request.roof_id).first()
-            if roof is not None:
-                roof.status = RoofStatusEnum.leased
+            roof.status = RoofStatusEnum.leased
 
         db.commit()
         db.refresh(lease_request)
