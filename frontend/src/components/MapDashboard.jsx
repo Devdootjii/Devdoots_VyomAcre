@@ -310,10 +310,10 @@ const MapDashboard = () => {
                   </Marker>
                 );
               }
+
               return null;
             })}
           </MapContainer>
-        </div>
 
         {/* Sidebar */}
         <div className="w-72 bg-slate-950 border-l border-slate-800 p-3 overflow-y-auto">
@@ -323,6 +323,7 @@ const MapDashboard = () => {
               Radar {radarActive ? 'ON' : 'OFF'}
             </button>
           </div>
+        </div>
 
           {displayedProperties.map((property) => {
             const status = getPropertyStatus(property);

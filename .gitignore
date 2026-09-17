@@ -20,3 +20,4 @@ vyomacre_backup.db
 vyomacre.db
 *.db
 backend/*.db
+python promote_admin.py
