@@ -594,26 +594,15 @@ function AppContent() {
   );
 }
 
-
-// ============================================================
-// APP ROOT
-// ============================================================
-
 function App() {
-
   return (
-
     <BrowserRouter>
-
       <UIProvider>
-
         <AppContent />
-
       </UIProvider>
-
     </BrowserRouter>
   );
 }
 
+export default App;
 
-export default App; 
