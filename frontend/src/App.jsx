@@ -9,11 +9,13 @@ import GeminiChatbot from './components/GeminiChatbot';
 
 import VyomLanding from './components/VyomLanding';
 import Login from './components/Login';
-import SignUp from './components/SignUp';
+import SignUp from './components/Signup';
 import OwnerForm from './components/OwnerForm';
 import OwnerInbox from './components/OwnerInbox';
 import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 import MapDashboard from './components/MapDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+import SeekerDashboard from './components/SeekerDashboard';
 
 const PlaceholderPage = ({ title, message }) => (
   <div className="min-h-screen bg-slate-950 px-6 py-20 text-white">
@@ -54,17 +56,29 @@ const App = () => {
               {/* Owner */}
               <Route
                 path="/owner-dashboard"
-                element={<OwnerStatusDashboard />}
+                element={
+                  <ProtectedRoute>
+                    <OwnerStatusDashboard />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/owner-inbox"
-                element={<OwnerInbox />}
+                element={
+                  <ProtectedRoute>
+                    <OwnerInbox />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
                 path="/portal"
-                element={<OwnerForm />}
+                element={
+                  <ProtectedRoute>
+                    <OwnerForm />
+                  </ProtectedRoute>
+                }
               />
 
               <Route
@@ -92,10 +106,9 @@ const App = () => {
               <Route
                 path="/seeker-dashboard"
                 element={
-                  <PlaceholderPage
-                    title="Seeker Dashboard"
-                    message="Seeker dashboard is being integrated."
-                  />
+                  <ProtectedRoute>
+                    <SeekerDashboard />
+                  </ProtectedRoute>
                 }
               />
 
@@ -166,4 +179,4 @@ const App = () => {
   );
 };
 
-export default App; 
+export default App;

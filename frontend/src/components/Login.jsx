@@ -32,22 +32,23 @@ const Login = () => {
     try {
       setLoading(true);
 
-      await loginUser(formData);
+      const response = await loginUser(formData);
 
-      navigate('/owner-dashboard');
+      const user = response?.data?.user;
+
+      if (user?.role === 'owner') {
+        navigate('/owner-dashboard');
+      } else {
+        navigate('/seeker-dashboard');
+      }
     } catch (err) {
       console.error('Login error:', err);
 
       const message =
-        err?.response?.data?.detail ||
         err?.response?.data?.message ||
-        'Login failed. Please check your credentials.';
+        'Incorrect email or password';
 
-      setError(
-        Array.isArray(message)
-          ? message.map((item) => item.msg).join(', ')
-          : String(message)
-      );
+      setError(String(message));
     } finally {
       setLoading(false);
     }
@@ -82,16 +83,16 @@ const Login = () => {
                 htmlFor="email"
                 className="mb-2 block text-sm font-medium text-slate-200"
               >
-                Phone Number
+                Phone Number / Email
               </label>
 
               <input
                 id="email"
                 name="email"
-                type="tel"
+                type="text"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Enter your phone number"
+                placeholder="Enter your email or phone"
                 className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-400"
               />
             </div>
@@ -142,6 +143,3 @@ const Login = () => {
 };
 
 export default Login;
-
-
-
