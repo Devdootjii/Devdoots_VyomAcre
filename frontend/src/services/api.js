@@ -99,5 +99,16 @@ export const createLeaseRequest = async (payload) => {
   const res = await apiClient.post('/api/lease-requests', payload);
   return res.data;
 };
+// AI chatbot — POST /api/ai/ask (envelope: {status, data: {answer}})
+export const askAI = async (question, context = 'landing') => {
+  const res = await apiClient.post('/api/ai/ask', { question, context });
+  return res.data;
+};
+
+// Owner accepts/rejects a lease request — PATCH /api/lease-requests/{id}
+export const updateLeaseRequest = async (id, status) => {
+  const res = await apiClient.patch(`/api/lease-requests/${id}`, { status });
+  return res.data;
+};
 
 export default apiClient;
