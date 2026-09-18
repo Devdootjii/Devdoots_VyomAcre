@@ -55,19 +55,35 @@ export default function SignUp() {
     try {
       setLoading(true);
 
-      await signupUser(formData);
+      const result = await signupUser(formData);
 
-      setSuccess('Account created successfully! Redirecting to login...');
+      const token = result?.data?.token;
+      const user = result?.data?.user;
+
+      if (!token || !user) {
+        throw new Error('Invalid signup response from server.');
+      }
+
+      localStorage.setItem('vyomacre_token', token);
+      localStorage.setItem('vyomacre_user', JSON.stringify(user));
+
+      setSuccess('Account created successfully! Redirecting...');
 
       setTimeout(() => {
-        navigate('/login');
+        if (user?.role === 'owner') {
+          navigate('/owner-dashboard');
+        } else if (user?.role === 'seeker') {
+          navigate('/seeker-dashboard');
+        } else {
+          navigate('/seeker-dashboard');
+        }
       }, 1200);
     } catch (err) {
       console.error('Signup failed:', err);
 
       setError(
-        err?.response?.data?.detail ||
         err?.response?.data?.message ||
+        err?.message ||
         'Registration failed. Please try again.'
       );
     } finally {
@@ -186,6 +202,10 @@ export default function SignUp() {
                 <option value="owner">
                   Property Owner
                 </option>
+
+                <option value="seeker">
+                  Rooftop Seeker / Developer
+                </option>
               </select>
             </div>
 
@@ -211,4 +231,4 @@ export default function SignUp() {
       </div>
     </div>
   );
-} 
+}

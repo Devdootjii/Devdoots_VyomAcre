@@ -4,7 +4,9 @@ import axios from 'axios';
 // API BASE URL
 // ============================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://devdoots-vyomacre-y0gr.onrender.com';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'https://devdoots-vyomacre-y0gr.onrender.com';
 
 // ============================================================
 // AXIOS CLIENT
@@ -46,22 +48,21 @@ export const signupUser = async (userData) => {
 export const loginUser = async (credentials) => {
   const response = await apiClient.post('/api/auth/login', credentials);
 
-  const data = response.data;
+  const responseData = response.data;
+  const data = responseData?.data;
 
-  if (data.access_token) {
-    localStorage.setItem('vyomacre_token', data.access_token);
+  const token = data?.token;
+  const user = data?.user;
+
+  if (token) {
+    localStorage.setItem('vyomacre_token', token);
   }
 
-  if (data.owner_data) {
-    localStorage.setItem(
-      'vyomacre_owner',
-      JSON.stringify(data.owner_data)
-    );
+  if (user) {
+    localStorage.setItem('vyomacre_user', JSON.stringify(user));
   }
 
-  localStorage.setItem('vyomacre_user', JSON.stringify(data));
-
-  return data;
+  return responseData;
 };
 
 export const getCurrentUser = async () => {
@@ -79,11 +80,9 @@ export const submitRoofDetails = async (roofData) => {
 };
 
 export const getOwnerRoofs = async (phone) => {
-  const response = await apiClient.get('/api/roofs/owner', {
-    params: {
-      phone,
-    },
-  });
+  const response = await apiClient.get(
+    '/api/roofs/owner/' + encodeURIComponent(phone)
+  );
 
   return response.data;
 };
@@ -92,19 +91,14 @@ export const getOwnerRoofs = async (phone) => {
 // OWNER - LEASE REQUESTS
 // ============================================================
 
-export const getOwnerLeaseRequests = async (ownerPhone) => {
-  const response = await apiClient.get('/api/lease-requests', {
-    params: {
-      owner_id: ownerPhone,
-    },
-  });
-
+export const getOwnerLeaseRequests = async () => {
+  const response = await apiClient.get('/api/lease-requests');
   return response.data;
 };
 
 export const updateLeaseRequest = async (requestId, status) => {
   const response = await apiClient.patch(
-    `/api/lease-requests/${requestId}`,
+    '/api/lease-requests/' + requestId,
     {
       status,
     }
@@ -128,7 +122,7 @@ export const getVerifiedRoofs = async () => {
 };
 
 export const getFilteredRoofs = async (filters = {}) => {
-  const response = await apiClient.get('/api/roofs/filter', {
+  const response = await apiClient.get('/api/roofs', {
     params: filters,
   });
 
@@ -136,7 +130,7 @@ export const getFilteredRoofs = async (filters = {}) => {
 };
 
 export const getScannedZones = async () => {
-  const response = await apiClient.get('/api/roofs/scanned-zones');
+  const response = await apiClient.get('/api/zones/scanned');
   return response.data;
 };
 
@@ -153,24 +147,9 @@ export const createLeaseRequest = async (leaseData) => {
   return response.data;
 };
 
-export const getSeekerLeaseRequests = async (seekerPhone) => {
-  try {
-    const response = await apiClient.get('/api/lease-requests', {
-      params: {
-        seeker_id: seekerPhone,
-      },
-    });
-
-    return response.data;
-  } catch (error) {
-    const response = await apiClient.get('/api/lease-requests', {
-      params: {
-        phone: seekerPhone,
-      },
-    });
-
-    return response.data;
-  }
+export const getSeekerLeaseRequests = async () => {
+  const response = await apiClient.get('/api/lease-requests/mine');
+  return response.data;
 };
 
 // ============================================================
@@ -189,4 +168,4 @@ export const askAI = async (question) => {
 // DEFAULT EXPORT
 // ============================================================
 
-export default apiClient; 
+export default apiClient;
