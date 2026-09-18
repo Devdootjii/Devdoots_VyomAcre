@@ -149,6 +149,10 @@ class LeaseRequestOut(BaseModel):
     id: uuid.UUID
     roof_id: uuid.UUID
     company_name: str
+    # Identity & privacy fix: the sending seeker's user id, taken from the
+    # token at creation time. Optional/None on legacy rows created before
+    # this column existed (test data) — see migrate_add_seeker_id.py.
+    seeker_id: Optional[uuid.UUID] = None
     status: LeaseStatus
     created_at: datetime
 
