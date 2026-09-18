@@ -1,700 +1,814 @@
-import React, { useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  motion, useInView, useMotionValue, useSpring, useTransform, useScroll,
+} from 'framer-motion';
+import {
+  Satellite, MapPin, ShieldCheck, ArrowRight, ChevronDown,
+  Zap, Eye, Layers, Clock, TrendingUp, Check, X, Radar, FileCheck, Globe, IndianRupee,
+} from 'lucide-react';
+import Lenis from 'lenis';
 
-// Existing UI Engine — preserved
-import { useUI } from '../context/UIContext';
+/* ============================================================
+   VyomAcre — Landing Page v3 (Style A: Dark Premium, INTERACTIVE)
+   - Slow, calm 3D globe + satellites (canvas, cursor-reactive)
+   - Lenis buttery smooth scrolling
+   - Looping feature marquee, timeline roadmap, magnetic buttons (subtle)
+   Requires: framer-motion, lucide-react, lenis (npm i lenis), Tailwind
+   ============================================================ */
 
-// Existing PreLoader — preserved
-import PreLoader from './PreLoader';
+/* ---------- 3D wireframe globe with satellites ---------- */
+function GlobeCanvas() {
+  const canvasRef = useRef(null);
 
-const revealVariants = {
-  hidden: {
-    opacity: 0,
-    y: 42,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.8,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let raf;
+    let w = 0, h = 0, t = 0;
+    const mouse = { x: 0.5, y: 0.5, sx: 0.5, sy: 0.5 };
 
-const staggerContainer = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
-};
+    const resize = () => {
+      const parent = canvas.parentElement;
+      w = canvas.width = parent.offsetWidth;
+      h = canvas.height = parent.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
 
-const stats = [
-  {
-    value: '10+',
-    label: 'Cities',
-  },
-  {
-    value: '500+',
-    label: 'Verified Roofs',
-  },
-  {
-    value: 'AI',
-    label: 'Property Verification',
-  },
-  {
-    value: '24/7',
-    label: 'Smart Discovery',
-  },
-];
+    const onMove = (e) => {
+      mouse.x = e.clientX / window.innerWidth;
+      mouse.y = e.clientY / window.innerHeight;
+    };
+    window.addEventListener('mousemove', onMove);
 
-const workflowSteps = [
-  {
-    number: '01',
-    title: 'List Your Roof',
-    description:
-      'Add your rooftop details once. VyomAcre turns unused space into a structured digital property listing.',
-  },
-  {
-    number: '02',
-    title: 'AI Verifies It',
-    description:
-      'Our intelligent verification layer analyzes location, rooftop context and listing information before it reaches the marketplace.',
-  },
-  {
-    number: '03',
-    title: 'Get Discovered',
-    description:
-      'Businesses can discover suitable spaces, evaluate opportunities and connect with the right property owners.',
-  },
-];
+    // sphere grid points
+    const grid = [];
+    for (let lat = -60; lat <= 60; lat += 20) {
+      for (let lon = 0; lon < 360; lon += 6) grid.push({ lat, lon, pin: false });
+    }
+    for (let lon = 0; lon < 360; lon += 15) {
+      for (let lat = -84; lat <= 84; lat += 4) grid.push({ lat, lon, pin: false });
+    }
 
-const trustFeatures = [
-  {
-    index: '01',
-    eyebrow: 'LOCATION INTELLIGENCE',
-    title: 'Satellite-Verified Accuracy',
-    description:
-      'Turn raw rooftop listings into reliable location intelligence with verification designed to reduce uncertainty before a deal begins.',
-    metric: 'HIGH CONFIDENCE',
-    visual: 'satellite',
-  },
-  {
-    index: '02',
-    eyebrow: 'AI ASSISTANCE',
-    title: 'AI-Powered Chat',
-    description:
-      'Ask questions, discover opportunities and navigate the platform through an intelligent assistant built around your property goals.',
-    metric: 'SMART DISCOVERY',
-    visual: 'ai',
-  },
-  {
-    index: '03',
-    eyebrow: 'MARKETPLACE SECURITY',
-    title: 'Secure B2B Marketplace',
-    description:
-      'A structured environment for owners and businesses to discover, evaluate and pursue rooftop opportunities with greater confidence.',
-    metric: 'BUILT FOR BUSINESS',
-    visual: 'secure',
-  },
-];
+    // verified-roof hotspots (Indian cities)
+    const pins = [
+      { lat: 28.6, lon: 77.2 }, { lat: 19.1, lon: 72.9 }, { lat: 12.97, lon: 77.6 },
+      { lat: 26.8, lon: 80.9 }, { lat: 26.9, lon: 75.8 }, { lat: 22.6, lon: 88.4 },
+      { lat: 17.4, lon: 78.5 }, { lat: 13.1, lon: 80.3 },
+    ].map((p) => ({ ...p, pin: true, phase: Math.random() * Math.PI * 2 }));
 
-function AmbientGlow({ className = '' }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={
-        'pointer-events-none absolute rounded-full bg-[#00FF87]/[0.06] blur-[120px] ' +
-        className
+    // satellites: [orbit tilt(rad), angular speed, orbit radius factor, phase]
+    const sats = [
+      { tilt: 0.5, speed: 0.16, rf: 1.55, ph: 0 },
+      { tilt: -0.9, speed: 0.11, rf: 1.85, ph: 2.1 },
+      { tilt: 1.4, speed: 0.20, rf: 1.35, ph: 4.4 },
+    ];
+
+    const project = (lat, lon, rotY, rotX) => {
+      const phi = ((90 - lat) * Math.PI) / 180;
+      const theta = ((lon + rotY) * Math.PI) / 180;
+      const x = Math.sin(phi) * Math.cos(theta);
+      const y0 = Math.cos(phi);
+      const z0 = Math.sin(phi) * Math.sin(theta);
+      const cX = Math.cos(rotX), sX = Math.sin(rotX);
+      const y = y0 * cX - z0 * sX;
+      const z = y0 * sX + z0 * cX;
+      return { x, y, z };
+    };
+
+    const draw = () => {
+      t += 0.004;
+      mouse.sx += (mouse.x - mouse.sx) * 0.045;
+      mouse.sy += (mouse.y - mouse.sy) * 0.045;
+
+      ctx.clearRect(0, 0, w, h);
+
+      const r = Math.min(w, h) * 0.30;
+      const cx = w > 900 ? w * 0.68 : w * 0.5;
+      const cy = h * 0.46 + (mouse.sy - 0.5) * 26;
+      const rotY = t * 22 + (mouse.sx - 0.5) * 120;
+      const rotX = 0.34 + (mouse.sy - 0.5) * 0.5;
+
+      const toScreen = (p) => {
+        const s = 1 + p.z * 0.14; // subtle perspective
+        return { sx: cx + p.x * r * s, sy: cy - p.y * r * s, depth: p.z };
+      };
+
+      // grid dots
+      for (const g of grid) {
+        const p = project(g.lat, g.lon, rotY, rotX);
+        const sc = toScreen(p);
+        const front = (1 - p.z) / 2; // 1 = front, 0 = back
+        ctx.fillStyle = 'rgba(148,170,157,' + (0.05 + front * 0.22).toFixed(3) + ')';
+        ctx.fillRect(sc.sx, sc.sy, 1.4, 1.4);
       }
+
+      // hotspot pins + pulse rings
+      for (const pin of pins) {
+        const p = project(pin.lat, pin.lon, rotY, rotX);
+        if (p.z < -0.05) { // front hemisphere only
+          const sc = toScreen(p);
+          const pulse = (Math.sin(t * 1.5 + pin.phase) + 1) / 2;
+          ctx.beginPath();
+          ctx.arc(sc.sx, sc.sy, 2.2 + pulse * 1.4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0,229,133,' + (0.75 + pulse * 0.25).toFixed(2) + ')';
+          ctx.shadowColor = 'rgba(0,229,133,0.8)';
+          ctx.shadowBlur = 8 + pulse * 6;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          // expanding ring
+          ctx.beginPath();
+          ctx.arc(sc.sx, sc.sy, 4 + pulse * 9, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(0,229,133,' + (0.35 * (1 - pulse)).toFixed(3) + ')';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      // satellites + orbit paths
+      for (const s of sats) {
+        const rr = r * s.rf;
+        // orbit path
+        ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2 + 0.05; a += 0.12) {
+          let ox = Math.cos(a + s.ph) * rr;
+          let oz = Math.sin(a + s.ph) * rr;
+          let oy = 0;
+          // tilt orbit around X axis
+          const cT = Math.cos(s.tilt), sT = Math.sin(s.tilt);
+          const oy2 = oy * cT - oz * sT;
+          const oz2 = oy * sT + oz * cT;
+          // global Y rotation for variety
+          const gRot = t * 22 + (mouse.sx - 0.5) * 120;
+          const gx = ox * Math.cos((gRot * Math.PI) / 180) - oz2 * Math.sin((gRot * Math.PI) / 180);
+          const gz = ox * Math.sin((gRot * Math.PI) / 180) + oz2 * Math.cos((gRot * Math.PI) / 180);
+          const sc = { x: cx + gx, y: cy - oy2 };
+          if (a === 0) ctx.moveTo(sc.x, sc.y);
+          else ctx.lineTo(sc.x, sc.y);
+        }
+        ctx.strokeStyle = 'rgba(0,229,133,0.08)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // satellite dot
+        const ang = t * 60 * s.speed + s.ph;
+        let ox = Math.cos(ang) * rr;
+        let oz = Math.sin(ang) * rr;
+        const cT = Math.cos(s.tilt), sT = Math.sin(s.tilt);
+        const oy2 = -oz * sT;
+        const oz2 = oz * cT;
+        const gRot = t * 22 + (mouse.sx - 0.5) * 120;
+        const gx = ox * Math.cos((gRot * Math.PI) / 180) - oz2 * Math.sin((gRot * Math.PI) / 180);
+        const gz = ox * Math.sin((gRot * Math.PI) / 180) + oz2 * Math.cos((gRot * Math.PI) / 180);
+
+        ctx.beginPath();
+        ctx.arc(cx + gx, cy - oy2, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#00E585';
+        ctx.shadowColor = 'rgba(0,229,133,1)';
+        ctx.shadowBlur = 9;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // beam to globe when in front
+        if (gz < 0) {
+          ctx.beginPath();
+          ctx.moveTo(cx + gx, cy - oy2);
+          ctx.lineTo(cx, cy);
+          ctx.strokeStyle = 'rgba(0,229,133,0.14)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', onMove);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none absolute inset-0 h-full w-full opacity-90"
+      aria-hidden="true"
     />
   );
 }
 
-function SectionLabel({ children }) {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 backdrop-blur-md">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_9px_rgba(0,255,135,0.8)]" />
-      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-        {children}
-      </span>
-    </div>
-  );
-}
-
-function OrbitalLines() {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-    >
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{
-          duration: 55,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-        className="absolute left-1/2 top-[41%] h-[520px] w-[920px] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-[#00FF87]/[0.08]"
-      />
-
-      <motion.div
-        animate={{ rotate: -360 }}
-        transition={{
-          duration: 70,
-          repeat: Infinity,
-          ease: 'linear',
-        }}
-        className="absolute left-1/2 top-[42%] h-[360px] w-[760px] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-[#00FF87]/[0.05]"
-      />
-
-      <motion.div
-        animate={{
-          x: [0, 20, 0],
-          opacity: [0.18, 0.34, 0.18],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-        className="absolute left-1/2 top-[38%] h-24 w-[580px] -translate-x-1/2 rounded-full bg-[#00FF87]/[0.08] blur-[90px]"
-      />
-
-      <div className="absolute left-[14%] top-[25%] h-1 w-1 rounded-full bg-[#00FF87]/70 shadow-[0_0_10px_rgba(0,255,135,0.8)]" />
-      <div className="absolute right-[18%] top-[32%] h-1.5 w-1.5 rounded-full bg-[#00FF87]/40 shadow-[0_0_12px_rgba(0,255,135,0.6)]" />
-      <div className="absolute left-[22%] bottom-[24%] h-1 w-1 rounded-full bg-white/30" />
-      <div className="absolute right-[13%] bottom-[31%] h-1 w-1 rounded-full bg-[#00FF87]/30" />
-    </div>
-  );
-}
-
-function FeatureVisual({ type }) {
-  if (type === 'satellite') {
-    return (
-      <div className="relative h-full min-h-[280px] w-full overflow-hidden bg-[#03100C]">
-        <div className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#00FF87]/20 bg-[#00FF87]/[0.025] shadow-[0_0_80px_rgba(0,255,135,0.12)]" />
-        <div className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#00FF87]/20 bg-[#00FF87]/[0.04]" />
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-          className="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-[50%] border border-dashed border-[#00FF87]/20"
-        />
-        <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#00FF87] shadow-[0_0_18px_rgba(0,255,135,0.9)]" />
-
-        <div className="absolute bottom-5 left-5 rounded-lg border border-white/10 bg-black/20 px-3 py-2 backdrop-blur-md">
-          <span className="block text-[9px] uppercase tracking-[0.18em] text-slate-500">
-            Verification
-          </span>
-          <span className="mt-1 block font-mono text-xs text-[#00FF87]">
-            SAT / GEO / AI
-          </span>
-        </div>
-
-        <div className="absolute right-5 top-5 flex items-center gap-2 rounded-full border border-[#00FF87]/20 bg-[#00FF87]/[0.04] px-3 py-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_8px_rgba(0,255,135,0.8)]" />
-          <span className="text-[9px] uppercase tracking-[0.15em] text-[#00FF87]">
-            Verified
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'ai') {
-    return (
-      <div className="relative h-full min-h-[280px] w-full overflow-hidden bg-[#03100C]">
-        <AmbientGlow className="left-1/2 top-1/2 h-52 w-52 -translate-x-1/2 -translate-y-1/2" />
-
-        <div className="absolute left-1/2 top-1/2 w-[78%] -translate-x-1/2 -translate-y-1/2 space-y-2">
-          <motion.div
-            animate={{ opacity: [0.55, 1, 0.55] }}
-            transition={{ duration: 3, repeat: Infinity }}
-            className="ml-auto w-[68%] rounded-2xl rounded-br-sm border border-[#00FF87]/15 bg-[#00FF87]/[0.055] px-4 py-3"
-          >
-            <p className="text-[11px] leading-5 text-slate-300">
-              Find rooftops suitable for a commercial solar setup.
-            </p>
-          </motion.div>
-
-          <div className="w-[82%] rounded-2xl rounded-bl-sm border border-white/10 bg-white/[0.035] px-4 py-3 backdrop-blur-md">
-            <div className="mb-2 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_8px_rgba(0,255,135,0.8)]" />
-              <span className="text-[9px] uppercase tracking-[0.16em] text-slate-500">
-                Vyom AI
-              </span>
-            </div>
-            <p className="text-[11px] leading-5 text-slate-300">
-              I found verified opportunities matching your location and space
-              requirements.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1 px-2 pt-2">
-            <span className="h-1 w-1 rounded-full bg-[#00FF87]/70" />
-            <span className="h-1 w-1 rounded-full bg-[#00FF87]/40" />
-            <span className="h-1 w-1 rounded-full bg-[#00FF87]/20" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative h-full min-h-[280px] w-full overflow-hidden bg-[#03100C]">
-      <AmbientGlow className="right-[-10%] top-[-10%] h-64 w-64" />
-
-      <div className="absolute inset-0 p-6">
-        <div className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-black/10 p-5 backdrop-blur-sm">
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="block text-[9px] uppercase tracking-[0.2em] text-slate-500">
-                Marketplace
-              </span>
-              <span className="mt-1 block font-mono text-xs text-slate-300">
-                ENCRYPTED CHANNEL
-              </span>
-            </div>
-
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#00FF87]/20 bg-[#00FF87]/[0.04]">
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="text-[#00FF87]"
-              >
-                <path d="M12 3l7 4v5c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9V7l7-4Z" />
-                <path d="m9.5 12 1.7 1.7 3.8-4" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
-              <span className="block text-[8px] uppercase tracking-wider text-slate-600">
-                Listing
-              </span>
-              <span className="mt-2 block h-1 w-10 rounded-full bg-[#00FF87]/50" />
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
-              <span className="block text-[8px] uppercase tracking-wider text-slate-600">
-                Owner
-              </span>
-              <span className="mt-2 block h-1 w-7 rounded-full bg-white/15" />
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-white/[0.025] p-3">
-              <span className="block text-[8px] uppercase tracking-wider text-slate-600">
-                B2B
-              </span>
-              <span className="mt-2 block h-1 w-8 rounded-full bg-[#00FF87]/30" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function VyomLanding() {
-  const { finishLoading, isAppLoading } = useUI();
+/* ---------- Cursor-following ambient glow ---------- */
+function CursorGlow() {
+  const x = useMotionValue(-600);
+  const y = useMotionValue(-600);
+  const sx = useSpring(x, { stiffness: 55, damping: 18 });
+  const sy = useSpring(y, { stiffness: 55, damping: 18 });
 
   useEffect(() => {
-    document.documentElement.style.scrollBehavior = 'smooth';
-
-    return () => {
-      document.documentElement.style.scrollBehavior = 'auto';
-    };
-  }, []);
-
-  const handlePreLoaderComplete = () => {
-    finishLoading();
-  };
+    const onMove = (e) => { x.set(e.clientX); y.set(e.clientY); };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, [x, y]);
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-[#020706] font-sans text-white selection:bg-[#00FF87]/20 selection:text-white">
-      <AnimatePresence mode="wait">
-        {isAppLoading ? (
-          <motion.div
-            key="preloader"
-            exit={{
-              opacity: 0,
-              y: -20,
-              filter: 'blur(10px)',
-            }}
-            transition={{
-              duration: 0.6,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="absolute inset-0 z-[100]"
-          >
-            <PreLoader onComplete={handlePreLoaderComplete} />
-          </motion.div>
-        ) : (
-          <motion.main
-            key="main-content"
-            initial={{
-              opacity: 0,
-              y: 30,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              duration: 0.8,
-              ease: [0.22, 1, 0.36, 1],
-              delay: 0.1,
-            }}
-            className="w-full"
-          >
-            {/* =========================================================
-                HERO
-            ========================================================= */}
-            <section className="relative flex min-h-[calc(100vh-72px)] items-center overflow-hidden pt-28">
-              <AmbientGlow className="left-1/2 top-[32%] h-[440px] w-[760px] -translate-x-1/2 -translate-y-1/2" />
-              <AmbientGlow className="left-[-10%] top-[45%] h-[250px] w-[250px]" />
-              <OrbitalLines />
+    <motion.div
+      aria-hidden="true"
+      className="pointer-events-none fixed left-0 top-0 z-[6] hidden h-[560px] w-[560px] rounded-full md:block"
+      style={{
+        x: sx, y: sy, translateX: '-50%', translateY: '-50%',
+        background: 'radial-gradient(circle, rgba(0,229,133,0.055) 0%, rgba(0,229,133,0.015) 40%, transparent 65%)',
+      }}
+    />
+  );
+}
 
-              <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center px-5 pb-24 text-center sm:px-6 lg:px-8">
-                <motion.div
-                  initial="hidden"
-                  animate="visible"
-                  variants={staggerContainer}
-                  className="flex max-w-5xl flex-col items-center"
-                >
-                  <motion.div variants={revealVariants}>
-                    <SectionLabel>AI-Powered Space Discovery</SectionLabel>
-                  </motion.div>
+/* ---------- Magnetic wrapper for buttons ---------- */
+function Magnetic({ children }) {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const sx = useSpring(x, { stiffness: 180, damping: 14 });
+  const sy = useSpring(y, { stiffness: 180, damping: 14 });
 
-                  <motion.h1
-                    variants={revealVariants}
-                    className="mt-7 max-w-5xl text-[clamp(3.2rem,8vw,7.5rem)] font-medium leading-[0.92] tracking-[-0.065em] text-white"
+  const onMove = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    x.set((e.clientX - (r.left + r.width / 2)) * 0.09);
+    y.set((e.clientY - (r.top + r.height / 2)) * 0.09);
+  };
+  const onLeave = () => { x.set(0); y.set(0); };
+
+  return (
+    <motion.div style={{ x: sx, y: sy }} onMouseMove={onMove} onMouseLeave={onLeave} className="inline-block">
+      {children}
+    </motion.div>
+  );
+}
+
+/* ---------- 3D tilt card ---------- */
+
+/* ---------- Reveal on scroll ---------- */
+function Reveal({ children, delay = 0, className = '' }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-70px' }}
+      transition={{ duration: 0.65, delay, ease: 'easeOut' }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ---------- Animated counter ---------- */
+function Counter({ to, suffix = '', prefix = '', duration = 1.4 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
+  const [val, setVal] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    let start;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / (duration * 1000), 1);
+      setVal(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [inView, to, duration]);
+
+  return <span ref={ref} style={{ fontVariantNumeric: 'tabular-nums' }}>{prefix}{val.toLocaleString('en-IN')}{suffix}</span>;
+}
+
+/* ---------- Main component ---------- */
+export default function VyomLanding() {
+  const [faqOpen, setFaqOpen] = useState(null);
+  const [city, setCity] = useState('Lucknow');
+  const [roofSize, setRoofSize] = useState(1200);
+  const [featActive, setFeatActive] = useState(0);
+  const [featHover, setFeatHover] = useState(false);
+
+  const { scrollY } = useScroll();
+  const heroY = useTransform(scrollY, [0, 700], [0, 140]);
+
+  // Buttery smooth scrolling (Lenis)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const lenis = new Lenis({ duration: 1.15, smoothWheel: true });
+    let raf;
+    const loop = (time) => { lenis.raf(time); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(raf); lenis.destroy(); };
+  }, []);
+
+  const cities = { Delhi: 1.3, Mumbai: 1.35, Lucknow: 1.0, Bengaluru: 1.2, Jaipur: 1.25, Other: 0.9 };
+  const monthly = Math.round(roofSize * 2.5 * cities[city]);
+  const yearly = monthly * 12;
+
+  const marqueeCities = ['New Delhi', 'Mumbai', 'Lucknow', 'Bengaluru', 'Jaipur', 'Kolkata', 'Hyderabad', 'Chennai', 'Pune', 'Kanpur', 'Indore', 'Bhopal'];
+
+  const steps = [
+    { n: '01', icon: MapPin, title: 'List your roof in 2 minutes', desc: 'Roof type, address and a map pin. No paperwork, no agent, no fees. Your roof goes live instantly.' },
+    { n: '02', icon: Satellite, title: 'Satellite verification from orbit', desc: 'Google Earth Engine measures your roof\u2019s usable area, shading and orientation automatically. No manual site visit. No guesswork. No waiting weeks.' },
+    { n: '03', icon: Radar, title: 'Businesses discover you', desc: 'Solar companies search the live map by city, roof type and size — and send lease requests straight to your inbox.' },
+    { n: '04', icon: IndianRupee, title: 'You earn rent for 20+ years', desc: 'Accept a request and your idle roof becomes a monthly income stream. The business installs and maintains its own equipment.' },
+  ];
+
+  const features = [
+    { icon: Satellite, title: 'Verified from orbit', desc: 'Every listing is scanned by Google Earth Engine — area, shading, roof type. Buyers trust what they see, so deals close faster.' },
+    { icon: MapPin, title: 'Live marketplace map', desc: 'Verified rooftops across cities, filterable by city, roof type and area. The whole market on one screen.' },
+    { icon: ShieldCheck, title: 'Identity-protected leasing', desc: 'Owners, businesses and admins have separate roles with token-based access. Listings never expose your phone number.' },
+    { icon: Zap, title: 'AI assistant built in', desc: 'A Gemini-powered assistant answers leasing questions inside the app — in English and Hindi — around the clock.' },
+    { icon: Eye, title: 'Full request transparency', desc: 'Track every request — pending, accepted, leased — with live status on the map. No black box, no middleman stories.' },
+    { icon: FileCheck, title: 'Free for owners, forever', desc: 'Listing, verification and lease requests cost nothing. You keep the lease income. We earn only when the market works.' },
+  ];
+
+  // Auto-advance the feature panel; pause while hovering
+  useEffect(() => {
+    if (featHover) return undefined;
+    const t = setInterval(() => setFeatActive((i) => (i + 1) % features.length), 3800);
+    return () => clearInterval(t);
+  }, [featHover, features.length]);
+
+  const comparison = [
+    { label: 'Roof assessment', old: 'Agent site visit, 2–4 weeks', vyom: 'Satellite scan, ~2 minutes' },
+    { label: 'Cost to owner', old: 'Broker commission', vyom: 'Zero — free forever' },
+    { label: 'Who finds you', old: 'Whoever the broker knows', vyom: 'Every business on the map' },
+    { label: 'Trust in listing data', old: 'Verbal claims', vyom: 'Google Earth Engine verified' },
+    { label: 'Request tracking', old: 'Phone calls and hope', vyom: 'Live status, request to lease' },
+    { label: 'Market visibility', old: 'One broker\u2019s contact list', vyom: 'City-wide public map' },
+  ];
+
+  const roadmap = [
+    { tag: 'LIVE NOW', title: 'Satellite verification', desc: 'Google Earth Engine roof scans working in production — every new roof is auto-verified on add.' },
+    { tag: 'LIVE NOW', title: 'Lease marketplace', desc: 'Owner listings, seeker requests, owner accept/reject flow — all live with role-based access.' },
+    { tag: 'LIVE NOW', title: 'AI assistant', desc: 'Gemini-powered chatbot answering leasing questions, with 429 auto-retry and response caching.' },
+    { tag: 'NEXT', title: 'Digital agreements', desc: 'Paperless lease signing and downloadable agreement documents.' },
+    { tag: 'NEXT', title: 'Payments & payouts', desc: 'Automated monthly rent payouts to owner accounts.' },
+  ];
+
+  const faqs = [
+    { q: 'How much can my roof earn?', a: 'It depends on size, city and sun exposure. Typical solar rooftop leases in India pay roughly \u20B92\u20134 per sq ft per month — a 1,200 sq ft roof in Lucknow can earn around \u20B936,000 a year. Use the calculator above for an estimate.' },
+    { q: 'What does satellite verification actually check?', a: 'Google Earth Engine imagery is used to estimate usable roof area, shading from nearby structures, and roof type. This replaces the manual site visit that normally delays every solar deal by weeks.' },
+    { q: 'Is listing really free?', a: 'Yes. Listing, verification and receiving lease requests are free for roof owners. VyomAcre earns from the business side, and only when leases actually close.' },
+    { q: 'Do I need to invest in solar panels myself?', a: 'No. The business that leases your roof installs and maintains its own equipment. You provide the roof and receive rent — that is the whole model.' },
+    { q: 'Is my data safe?', a: 'Listings show only first names and roof details — never your full identity or phone number. Lease requests are private and visible only to you.' },
+  ];
+
+  return (
+    <div className="relative overflow-x-clip bg-[#050A08] text-[#E7EFE9]" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <style>{`
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+.vy-head { font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; letter-spacing: -0.01em; }
+@keyframes vymarquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes vyfloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.vy-float { animation: vyfloat 6.5s ease-in-out infinite; will-change: transform; }
+@keyframes vypulse { 0% { top: 2%; opacity: 0; } 12% { opacity: 1; } 82% { opacity: 1; } 100% { top: 98%; opacity: 0; } }
+`}</style>
+      <CursorGlow />
+
+      {/* ============ HERO ============ */}
+      <section className="relative min-h-[92vh] overflow-hidden px-6 pb-20 pt-16 sm:px-10 lg:px-16">
+        <GlobeCanvas />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#050A08]" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-full bg-gradient-to-r from-[#050A08] via-[#050A08]/70 to-transparent lg:w-3/5" />
+
+        <motion.div style={{ y: heroY }} className="relative mx-auto flex min-h-[68vh] max-w-6xl flex-col justify-center">
+          <div className="mb-7 inline-flex w-fit items-center gap-2.5 rounded-full border border-[#1C2A22] bg-[#0A1410]/80 px-4 py-1.5 backdrop-blur-sm">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00E585] opacity-60" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00E585]" />
+            </span>
+            <span className="text-xs font-medium text-[#93A096]">Live in production — every listing verified by satellite</span>
+          </div>
+
+          <h1 className="vy-head max-w-3xl text-5xl font-bold leading-[1.04] tracking-tight text-[#F4F8F5] sm:text-6xl lg:text-7xl">
+            Your roof is worth money.<br />
+            <span className="text-[#00E585]">Get it verified from orbit.</span>
+          </h1>
+
+          <p className="mt-7 max-w-xl text-lg leading-relaxed text-[#A6B1A8]">
+            VyomAcre connects India&rsquo;s idle rooftops with solar businesses.
+            List your roof, let Google&rsquo;s satellites verify it, and receive
+            lease requests — without a single site visit.
+          </p>
+
+          <div className="mt-10 flex flex-wrap items-center gap-5">
+            <Magnetic>
+              <a href="/signup" className="inline-flex items-center justify-center rounded-xl bg-[#00E585] px-8 py-4 text-base font-semibold text-[#04160C] shadow-[0_0_20px_rgba(0,229,133,0.16)]">
+                List your roof — free
+              </a>
+            </Magnetic>
+            <Magnetic>
+              <a href="/properties" className="inline-flex items-center gap-2 rounded-xl border border-[#24352B] px-8 py-4 text-base font-medium text-[#D7E2DA] transition-colors hover:border-[#00E585]/50">
+                Browse the live map <ArrowRight size={17} />
+              </a>
+            </Magnetic>
+          </div>
+
+          <div className="mt-14 flex flex-wrap gap-x-8 gap-y-3 border-t border-[#1A2620] pt-7 text-sm text-[#7E8B82]">
+            <span className="inline-flex items-center gap-2"><Clock size={15} className="text-[#00E585]" /> 2 minutes to list</span>
+            <span className="inline-flex items-center gap-2"><Layers size={15} className="text-[#00E585]" /> Zero investment</span>
+            <span className="inline-flex items-center gap-2"><TrendingUp size={15} className="text-[#00E585]" /> 20+ year income</span>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* ============ CITY MARQUEE ============ */}
+      <section className="border-y border-[#121D17] bg-[#071009] py-5">
+        <div className="overflow-hidden [mask-image:linear-gradient(90deg,transparent,black_12%,black_88%,transparent)]">
+          <div className="flex w-max gap-12" style={{ animation: 'vymarquee 34s linear infinite' }}>
+            {[...marqueeCities, ...marqueeCities].map((c, i) => (
+              <span key={i} className="flex items-center gap-12 text-sm font-medium tracking-[0.18em] text-[#4E5B52]">
+                {c.toUpperCase()}
+                <span className="h-1 w-1 rounded-full bg-[#00E585]/40" />
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ STATS BAND ============ */}
+      <section className="px-6 py-20 sm:px-10 lg:px-16">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4">
+          {[
+            { v: 637, s: ' GW', label: 'Rooftop solar potential in India (CEEW)' },
+            { v: 25, s: ' cr', label: 'Households that could host it' },
+            { v: 75021, s: ' cr', prefix: '₹', label: 'PM Surya Ghar push to unlock it' },
+            { v: 2, s: ' min', label: 'To list a roof on VyomAcre' },
+          ].map((st) => (
+            <Reveal key={st.label}>
+              <div className="vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+                <Counter to={st.v} prefix={st.prefix || ''} suffix={st.s} />
+              </div>
+              <div className="mt-2 max-w-[210px] text-sm leading-relaxed text-[#7E8B82]">{st.label}</div>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      {/* ============ HOW IT WORKS ============ */}
+      <section className="border-t border-[#121D17] bg-[#071009] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">How it works</div>
+            <h2 className="mt-4 max-w-2xl vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              From rooftop to rent in four steps
+            </h2>
+          </Reveal>
+
+          <div className="relative mt-16">
+            <div className="absolute bottom-6 left-[27px] top-6 hidden w-px bg-gradient-to-b from-[#00E585]/40 via-[#1A2620] to-transparent sm:block" />
+            <div className="space-y-6">
+              {steps.map((s, i) => (
+                <Reveal key={s.n} delay={i * 0.06}>
+                  <div className="group relative flex gap-6 rounded-2xl border border-[#182420] bg-[#08120C] p-7 transition-colors hover:border-[#00E585]/40 sm:ml-0 sm:pl-8">
+                    <div className="flex h-14 w-14 flex-none items-center justify-center rounded-xl border border-[#00E585]/25 bg-[#00E585]/[0.06]">
+                      <s.icon size={24} strokeWidth={1.5} className="text-[#00E585]" />
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-3">
+                        <span className="text-xs font-semibold tracking-[0.14em] text-[#00E585]">{s.n}</span>
+                        <span className="text-lg font-semibold text-[#EDF3EF]">{s.title}</span>
+                      </div>
+                      <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-[#8A968E]">{s.desc}</p>
+                    </div>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+
+          <Reveal delay={0.15}>
+            <div className="mt-8 rounded-2xl border border-[#182420] bg-[#08120C] px-7 py-6 text-[15px] leading-relaxed text-[#8A968E]">
+              The step that dies in today&rsquo;s market is step two —{' '}
+              <span className="text-[#00E585]">without satellite verification, every roof needs a manual site visit before anyone will sign anything.</span>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ============ CALCULATOR ============ */}
+      <section className="border-t border-[#121D17] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">Roof income calculator</div>
+            <h2 className="mt-4 vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              What could your roof earn?
+            </h2>
+            <p className="mt-5 max-w-md text-base leading-relaxed text-[#93A096]">
+              Solar businesses pay rent to lease rooftops for their equipment.
+              Move the slider and see what your idle space could be worth —
+              you never install anything yourself.
+            </p>
+            <div className="mt-8 space-y-3 text-sm leading-relaxed text-[#7E8B82]">
+              <p><span className="text-[#D7E2DA] font-medium">No investment.</span> The business installs and maintains its own panels and equipment.</p>
+              <p><span className="text-[#D7E2DA] font-medium">No risk to your home.</span> Leases run 20+ years with fixed monthly rent.</p>
+              <p><span className="text-[#D7E2DA] font-medium">No agent.</span> Requests arrive directly in your VyomAcre inbox.</p>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.1}>
+            <div className="rounded-3xl border border-[#182420] bg-[#08120C] p-8 sm:p-10">
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7E8B82]">Your city</label>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Object.keys(cities).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCity(c)}
+                    className={'rounded-full px-4 py-2 text-sm font-medium transition-colors ' + (city === c
+                      ? 'bg-[#00E585] text-[#04160C]'
+                      : 'border border-[#24352B] text-[#93A096] hover:border-[#00E585]/40')}
                   >
-                    Turn Your Empty Roof{' '}
-                    <span className="text-[#00FF87] [text-shadow:0_0_45px_rgba(0,255,135,0.12)]">
-                      Into Revenue.
+                    {c}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-8 block text-xs font-semibold uppercase tracking-[0.14em] text-[#7E8B82]">
+                Roof size — <span className="text-[#F4F8F5]">{roofSize.toLocaleString('en-IN')} sq ft</span>
+              </label>
+              <input
+                type="range"
+                min="300"
+                max="5000"
+                step="50"
+                value={roofSize}
+                onChange={(e) => setRoofSize(Number(e.target.value))}
+                className="mt-4 w-full accent-[#00E585]"
+              />
+              <div className="mt-1 flex justify-between text-[11px] text-[#5E6B62]">
+                <span>300 sq ft</span><span>5,000 sq ft</span>
+              </div>
+
+              <div className="mt-9 rounded-2xl border border-[#1C2A22] bg-[#0A1410] p-6">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[#7E8B82]">Estimated lease income</div>
+                <div className="mt-2 vy-head text-5xl font-bold tracking-tight text-[#00E585]">
+                  <Counter to={yearly} prefix="₹" key={city + '-' + roofSize} duration={0.7} />
+                  <span className="text-lg font-medium text-[#93A096]"> / year</span>
+                </div>
+                <div className="mt-2 text-sm text-[#7E8B82]">
+                  About <span className="text-[#D7E2DA]">₹{monthly.toLocaleString('en-IN')}</span> per month · estimate only
+                </div>
+              </div>
+
+              <a href="/signup" className="mt-8 block rounded-xl bg-[#00E585] py-3.5 text-center text-base font-semibold text-[#04160C] transition-transform hover:scale-[1.02]">
+                List your roof — get real offers
+              </a>
+              <p className="mt-4 text-center text-xs leading-relaxed text-[#5E6B62]">
+                Estimate based on typical Indian solar rooftop lease rates (~₹2.5/sq ft/month, city-adjusted). Actual offers depend on shading, orientation and buyer.
+              </p>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ============ FEATURES (infinite loop rows) ============ */}
+      <section className="border-t border-[#121D17] bg-[#071009] py-24">
+        <div className="mx-auto max-w-6xl px-6 sm:px-10 lg:px-16">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">Why VyomAcre</div>
+            <h2 className="mt-4 max-w-2xl vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              Built like infrastructure, not like a listing site
+            </h2>
+          </Reveal>
+        </div>
+
+        {/* Desktop: auto-cycling expanding panels */}
+        <div
+          className="mt-14 hidden h-[340px] gap-3 lg:flex"
+          onMouseEnter={() => setFeatHover(true)}
+          onMouseLeave={() => setFeatHover(false)}
+        >
+          {features.map((f, i) => {
+            const active = i === featActive;
+            return (
+              <button
+                key={f.title}
+                onClick={() => setFeatActive(i)}
+                className={'relative flex flex-col overflow-hidden rounded-2xl border p-6 text-left transition-all duration-500 ease-out ' + (active
+                  ? 'flex-[3.4] border-[#00E585]/40 bg-[#08120C]'
+                  : 'flex-[0.5] border-[#182420] bg-[#08120C]/50 hover:border-[#00E585]/25')}
+              >
+                {active && (
+                  <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#00E585]/[0.07] blur-3xl" />
+                )}
+                <f.icon size={24} strokeWidth={1.5} className="flex-none text-[#00E585]" />
+                <div className={'transition-opacity duration-500 ' + (active ? 'mt-6 opacity-100' : 'hidden')}>
+                  <div className="text-lg font-semibold text-[#EDF3EF]">{f.title}</div>
+                  <p className="mt-2 max-w-md text-sm leading-relaxed text-[#8A968E]">{f.desc}</p>
+                </div>
+                {!active && (
+                  <span className="vy-head mt-auto text-xs font-semibold tracking-[0.12em] text-[#5E6B62]">0{i + 1}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Mobile: one card at a time + dots */}
+        <div
+          className="mt-14 lg:hidden"
+          onMouseEnter={() => setFeatHover(true)}
+          onMouseLeave={() => setFeatHover(false)}
+        >
+          <div className="rounded-2xl border border-[#00E585]/40 bg-[#08120C] p-6">
+            {features.slice(featActive, featActive + 1).map((f) => (
+              <div key={f.title}>
+                <f.icon size={24} strokeWidth={1.5} className="text-[#00E585]" />
+                <div className="mt-4 text-lg font-semibold text-[#EDF3EF]">{f.title}</div>
+                <p className="mt-2 text-sm leading-relaxed text-[#8A968E]">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex justify-center gap-2">
+            {features.map((f, i) => (
+              <button
+                key={f.title}
+                onClick={() => setFeatActive(i)}
+                className={'h-1.5 rounded-full transition-all ' + (i === featActive ? 'w-7 bg-[#00E585]' : 'w-1.5 bg-[#24352B]')}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ COMPARISON ============ */}
+      <section className="border-t border-[#121D17] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="mx-auto max-w-5xl">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">The difference</div>
+            <h2 className="mt-4 vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              The broker route vs the VyomAcre route
+            </h2>
+          </Reveal>
+
+          <Reveal delay={0.1}>
+            <div className="mt-12 overflow-hidden rounded-2xl border border-[#182420]">
+              <div className="grid grid-cols-3 border-b border-[#182420] bg-[#08120C] px-6 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-[#7E8B82]">
+                <span />
+                <span>Broker route</span>
+                <span className="text-[#00E585]">VyomAcre</span>
+              </div>
+              {comparison.map((row) => (
+                <div key={row.label} className="grid grid-cols-3 items-start border-b border-[#121D17] bg-[#050A08] px-6 py-5 text-sm last:border-0">
+                  <span className="pr-3 font-medium text-[#D7E2DA]">{row.label}</span>
+                  <span className="flex items-start gap-2 pr-3 text-[#8A968E]"><X size={15} className="mt-0.5 flex-none text-[#B05252]" />{row.old}</span>
+                  <span className="flex items-start gap-2 text-[#C9D6CD]"><Check size={15} className="mt-0.5 flex-none text-[#00E585]" />{row.vyom}</span>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ============ WHY NOW ============ */}
+      <section className="border-t border-[#121D17] bg-[#071009] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">Why now</div>
+            <h2 className="mt-4 max-w-3xl vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              India is spending <span className="text-[#00E585]">₹75,021 crore</span> to solve this. The marketplace is missing.
+            </h2>
+          </Reveal>
+
+          <div className="mt-14 grid gap-x-6 gap-y-10 border-t border-[#1A2620] pt-10 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { v: 10000000, fmt: '1 crore', label: 'Households targeted by PM Surya Ghar for rooftop solar' },
+              { v: 30, s: ' GW', label: 'Residential rooftop target by March 2027' },
+              { v: 13000000, fmt: '1.3 crore', label: 'Registrations already on the national portal' },
+              { v: 3, s: ' cities', label: 'Already live on VyomAcre\u2019s marketplace map' },
+            ].map((m) => (
+              <Reveal key={m.label}>
+                <div>
+                  <div className="vy-head text-4xl font-bold tracking-tight text-[#F4F8F5]">
+                    {m.fmt ? m.fmt : <Counter to={m.v} suffix={m.s || ''} />}
+                  </div>
+                  <div className="mt-2 max-w-[220px] text-sm leading-relaxed text-[#7E8B82]">{m.label}</div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={0.1}>
+            <p className="mt-10 border-t border-[#121D17] pt-6 text-xs text-[#5E6B62]">
+              Sources: PIB cabinet approval, Feb 2024 · IEEFA analysis of PMSGY, Oct 2024 · CEEW residential rooftop solar study
+            </p>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ============ ROADMAP (floating panels) ============ */}
+      <section className="relative overflow-hidden border-t border-[#121D17] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="vy-float pointer-events-none absolute right-[6%] top-[16%] h-64 w-64 rounded-full bg-[#00E585]/[0.04] blur-3xl" style={{ animationDelay: '1.3s' }} />
+        <div className="relative mx-auto max-w-4xl">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">Where we are</div>
+            <h2 className="mt-4 max-w-2xl vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              Working software, not a promise
+            </h2>
+          </Reveal>
+
+          <div className="relative mt-16">
+            <div className="absolute bottom-6 left-8 top-6 hidden w-px bg-gradient-to-b from-[#00E585]/40 via-[#1A2620] to-transparent sm:block" />
+            <div className="pointer-events-none absolute left-[26px] hidden h-3 w-3 rounded-full bg-[#00E585] shadow-[0_0_14px_rgba(0,229,133,0.9)] sm:block" style={{ animation: 'vypulse 4.5s ease-in-out infinite' }} />
+
+            <div className="space-y-6">
+              {roadmap.map((r, i) => (
+                <Reveal key={r.title} delay={i * 0.05}>
+                  <div className="vy-float relative sm:pl-20" style={{ animationDelay: (i * 0.75).toFixed(2) + 's' }}>
+                    <span className={'absolute left-[26px] top-1/2 hidden h-3 w-3 -translate-y-1/2 items-center justify-center rounded-full sm:flex ' + (r.tag === 'LIVE NOW'
+                      ? 'bg-[#00E585] shadow-[0_0_10px_rgba(0,229,133,0.5)]'
+                      : 'border border-[#3A4A40] bg-[#050A08]')}>
+                      {r.tag === 'LIVE NOW' && (
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00E585] opacity-25" />
+                      )}
                     </span>
-                  </motion.h1>
-
-                  <motion.p
-                    variants={revealVariants}
-                    className="mt-7 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base"
-                  >
-                    VyomAcre uses AI-powered verification and intelligent
-                    discovery to connect valuable rooftop space with the
-                    businesses looking for it.
-                  </motion.p>
-
-                  <motion.div
-                    variants={revealVariants}
-                    className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row"
-                  >
-                    <Link
-                      to="/register"
-                      className="inline-flex w-full items-center justify-center rounded-full bg-[#00FF87] px-7 py-3.5 text-sm font-semibold text-[#020706] shadow-[0_0_25px_rgba(0,255,135,0.24)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_34px_rgba(0,255,135,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF87] focus-visible:ring-offset-2 focus-visible:ring-offset-[#020706] sm:w-auto"
-                    >
-                      List Your Space
-                      <svg
-                        className="ml-2 h-4 w-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path
-                          d="M5 12h14M13 6l6 6-6 6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </Link>
-
-                    <Link
-                      to="/properties"
-                      className="inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-white/[0.035] px-7 py-3.5 text-sm font-medium text-slate-200 backdrop-blur-xl transition-all duration-300 hover:border-white/15 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF87]/30 sm:w-auto"
-                    >
-                      Explore Properties
-                    </Link>
-                  </motion.div>
-
-                  <motion.div
-                    variants={revealVariants}
-                    className="mt-14 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-slate-600"
-                  >
-                    <span className="h-px w-8 bg-white/10" />
-                    <span>Built for owners & businesses</span>
-                    <span className="h-px w-8 bg-white/10" />
-                  </motion.div>
-                </motion.div>
-
-                {/* Hero Data Modules */}
-                <motion.div
-                  initial={{ opacity: 0, y: 35 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    delay: 0.75,
-                    duration: 0.8,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className="mt-16 grid w-full max-w-4xl grid-cols-2 gap-2 sm:grid-cols-4"
-                >
-                  {stats.map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="group rounded-2xl border border-white/10 bg-white/[0.025] p-4 text-left backdrop-blur-xl transition-all duration-300 hover:border-[#00FF87]/15 hover:bg-white/[0.04]"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-lg font-medium tracking-[-0.04em] text-white">
-                          {stat.value}
+                    <div className={'rounded-2xl border px-7 py-6 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 ' + (r.tag === 'LIVE NOW'
+                      ? 'border-[#00E585]/25 bg-[#08120C]/70 hover:border-[#00E585]/50'
+                      : 'border-[#182420] bg-[#08120C]/50 hover:border-[#24352B]')}>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className={'rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-[0.14em] ' + (r.tag === 'LIVE NOW'
+                          ? 'bg-[#00E585]/10 text-[#00E585]'
+                          : 'bg-[#141D17] text-[#7E8B82]')}>
+                          {r.tag}
                         </span>
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87]/60 shadow-[0_0_7px_rgba(0,255,135,0.5)] opacity-60 transition-opacity group-hover:opacity-100" />
+                        <span className="text-lg font-semibold text-[#EDF3EF]">{r.title}</span>
+                        <span className="ml-auto hidden font-mono text-[10px] tracking-[0.18em] text-[#3A4A40] sm:block">0{i + 1}</span>
                       </div>
-
-                      <p className="mt-2 text-[10px] uppercase tracking-[0.13em] text-slate-500">
-                        {stat.label}
-                      </p>
-                    </div>
-                  ))}
-                </motion.div>
-              </div>
-            </section>
-
-            {/* =========================================================
-                HOW IT WORKS
-            ========================================================= */}
-            <motion.section
-              variants={revealVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-120px' }}
-              className="relative overflow-hidden border-y border-white/10"
-            >
-              <div className="mx-auto max-w-7xl px-5 py-24 sm:px-6 md:py-28 lg:px-8">
-                <div className="grid gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
-                  <div>
-                    <SectionLabel>How VyomAcre Works</SectionLabel>
-
-                    <h2 className="mt-6 max-w-xl text-4xl font-medium leading-tight tracking-[-0.05em] text-white sm:text-5xl">
-                      From unused space to{' '}
-                      <span className="text-[#00FF87]">real opportunity.</span>
-                    </h2>
-
-                    <p className="mt-5 max-w-lg text-sm leading-7 text-slate-400">
-                      A simple flow connects rooftop owners with businesses
-                      searching for valuable, verified space.
-                    </p>
-                  </div>
-
-                  <motion.div
-                    variants={staggerContainer}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true }}
-                    className="grid gap-3 md:grid-cols-3"
-                  >
-                    {workflowSteps.map((step) => (
-                      <motion.article
-                        key={step.number}
-                        variants={revealVariants}
-                        className="relative rounded-2xl border border-white/10 bg-white/[0.025] p-6 backdrop-blur-xl transition-colors duration-300 hover:border-[#00FF87]/15"
-                      >
-                        <span className="font-mono text-xs text-[#00FF87]/70">
-                          {step.number}
-                        </span>
-
-                        <h3 className="mt-8 text-lg font-medium tracking-[-0.025em] text-white">
-                          {step.title}
-                        </h3>
-
-                        <p className="mt-3 text-sm leading-6 text-slate-500">
-                          {step.description}
-                        </p>
-
-                        <div className="mt-8 h-px w-10 bg-[#00FF87]/35" />
-                      </motion.article>
-                    ))}
-                  </motion.div>
-                </div>
-              </div>
-            </motion.section>
-
-            {/* =========================================================
-                TRUST / FEATURES
-            ========================================================= */}
-            <section className="relative overflow-hidden">
-              <AmbientGlow className="right-[-12%] top-[25%] h-[400px] w-[400px]" />
-
-              <div className="relative z-10 mx-auto max-w-7xl px-5 py-24 sm:px-6 md:py-32 lg:px-8">
-                <motion.div
-                  variants={revealVariants}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true, margin: '-120px' }}
-                  className="max-w-2xl"
-                >
-                  <SectionLabel>Trust Infrastructure</SectionLabel>
-
-                  <h2 className="mt-6 text-4xl font-medium leading-tight tracking-[-0.05em] text-white sm:text-5xl">
-                    Built to make{' '}
-                    <span className="text-[#00FF87]">space discoverable.</span>
-                  </h2>
-
-                  <p className="mt-5 max-w-xl text-sm leading-7 text-slate-400">
-                    Every part of the experience is designed to reduce
-                    uncertainty and make rooftop opportunities easier to find,
-                    understand and act on.
-                  </p>
-                </motion.div>
-
-                <div className="mt-14 space-y-4">
-                  {trustFeatures.map((feature, index) => (
-                    <motion.article
-                      key={feature.index}
-                      initial={{
-                        opacity: 0,
-                        y: 45,
-                      }}
-                      whileInView={{
-                        opacity: 1,
-                        y: 0,
-                      }}
-                      viewport={{
-                        once: true,
-                        margin: '-100px',
-                      }}
-                      transition={{
-                        duration: 0.75,
-                        delay: index * 0.08,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                      className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur-xl"
-                    >
-                      <div className="grid lg:grid-cols-[1fr_0.95fr]">
-                        <div className="flex flex-col justify-between p-7 sm:p-9 lg:p-11">
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="font-mono text-xs text-[#00FF87]/65">
-                                {feature.index}
-                              </span>
-
-                              <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-slate-600">
-                                {feature.eyebrow}
-                              </span>
-                            </div>
-
-                            <h3 className="mt-16 max-w-md text-3xl font-medium tracking-[-0.045em] text-white sm:text-4xl">
-                              {feature.title}
-                            </h3>
-
-                            <p className="mt-5 max-w-md text-sm leading-7 text-slate-400">
-                              {feature.description}
-                            </p>
-                          </div>
-
-                          <div className="mt-12 flex items-center gap-3">
-                            <span className="h-px w-8 bg-[#00FF87]/40" />
-                            <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-slate-600">
-                              {feature.metric}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-white/10 lg:border-l lg:border-t-0">
-                          <FeatureVisual type={feature.visual} />
-                        </div>
-                      </div>
-                    </motion.article>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* =========================================================
-                FINAL CTA
-            ========================================================= */}
-            <section className="relative overflow-hidden border-t border-white/10">
-              <AmbientGlow className="left-1/2 top-1/2 h-[480px] w-[760px] -translate-x-1/2 -translate-y-1/2" />
-
-              <div className="relative z-10 mx-auto max-w-7xl px-5 py-24 sm:px-6 md:py-32 lg:px-8">
-                <motion.div
-                  initial={{
-                    opacity: 0,
-                    y: 45,
-                  }}
-                  whileInView={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  viewport={{
-                    once: true,
-                    margin: '-120px',
-                  }}
-                  transition={{
-                    duration: 0.85,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025] px-6 py-16 text-center backdrop-blur-xl sm:px-10 md:py-20"
-                >
-                  <OrbitalLines />
-
-                  <div className="relative z-10 mx-auto max-w-3xl">
-                    <SectionLabel>Next Move</SectionLabel>
-
-                    <h2 className="mt-6 text-4xl font-medium leading-tight tracking-[-0.055em] text-white sm:text-5xl md:text-6xl">
-                      Ready to{' '}
-                      <span className="text-[#00FF87]">
-                        Monetize Your Roof?
-                      </span>
-                    </h2>
-
-                    <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
-                      Put your unused rooftop to work or discover your next
-                      high-value space with VyomAcre.
-                    </p>
-
-                    <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                      <Link
-                        to="/register"
-                        className="inline-flex w-full items-center justify-center rounded-full bg-[#00FF87] px-7 py-3.5 text-sm font-semibold text-[#020706] shadow-[0_0_25px_rgba(0,255,135,0.22)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_rgba(0,255,135,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF87] focus-visible:ring-offset-2 focus-visible:ring-offset-[#020706] sm:w-auto"
-                      >
-                        List Your Space
-                        <svg
-                          className="ml-2 h-4 w-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path
-                            d="M5 12h14M13 6l6 6-6 6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </Link>
-
-                      <Link
-                        to="/properties"
-                        className="inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-black/20 px-7 py-3.5 text-sm font-medium text-slate-300 transition-all duration-300 hover:border-white/15 hover:bg-white/[0.05] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF87]/30 sm:w-auto"
-                      >
-                        Explore Properties
-                      </Link>
+                      <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[#8A968E]">{r.desc}</p>
                     </div>
                   </div>
-                </motion.div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ FAQ ============ */}
+      <section className="border-t border-[#121D17] bg-[#071009] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="mx-auto max-w-3xl">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">Questions</div>
+            <h2 className="mt-4 vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              What owners ask us
+            </h2>
+          </Reveal>
+
+          <div className="mt-12 divide-y divide-[#182420] border-y border-[#182420]">
+            {faqs.map((f, i) => (
+              <div key={i}>
+                <button
+                  onClick={() => setFaqOpen(faqOpen === i ? null : i)}
+                  className="flex w-full items-center justify-between gap-6 py-6 text-left"
+                >
+                  <span className="text-base font-medium text-[#EDF3EF]">{f.q}</span>
+                  <ChevronDown
+                    size={19}
+                    className={'flex-none text-[#00E585] transition-transform duration-300 ' + (faqOpen === i ? 'rotate-180' : '')}
+                  />
+                </button>
+                <div className={'grid transition-all duration-300 ease-out ' + (faqOpen === i ? 'grid-rows-[1fr] pb-6 opacity-100' : 'grid-rows-[0fr] opacity-0')}>
+                  <div className="overflow-hidden">
+                    <p className="max-w-xl text-[15px] leading-relaxed text-[#8A968E]">{f.a}</p>
+                  </div>
+                </div>
               </div>
-            </section>
-          </motion.main>
-        )}
-      </AnimatePresence>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ FINAL CTA ============ */}
+      <section className="relative overflow-hidden border-t border-[#121D17] px-6 py-28 sm:px-10 lg:px-16">
+        <GlobeCanvas />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#050A08] via-transparent to-[#050A08]" />
+        <div className="relative mx-auto max-w-4xl text-center">
+          <h2 className="vy-head text-4xl font-bold leading-tight tracking-tight text-[#F4F8F5] sm:text-6xl">
+            India&rsquo;s rooftops are idle.<br />
+            <span className="text-[#00E585]">Put yours to work.</span>
+          </h2>
+          <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-[#A6B1A8]">
+            Free to list. Verified by satellite. Live on the map in minutes.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-5">
+            <a href="/signup" className="inline-flex items-center justify-center rounded-xl bg-[#00E585] px-9 py-4 text-base font-semibold text-[#04160C] shadow-[0_0_20px_rgba(0,229,133,0.16)]">
+              List your roof — free
+            </a>
+            <a href="/properties" className="inline-flex items-center gap-2 rounded-xl border border-[#24352B] px-9 py-4 text-base font-medium text-[#D7E2DA] transition-colors hover:border-[#00E585]/50">
+              Explore the map <ArrowRight size={17} />
+            </a>
+          </div>
+          <p className="mt-14 inline-flex items-center gap-2 text-xs text-[#5E6B62]">
+            <Globe size={13} className="text-[#00E585]/60" />
+            Built on Google Earth Engine · Powered by Gemini AI · Live in production
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
