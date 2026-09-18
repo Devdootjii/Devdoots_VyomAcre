@@ -4,7 +4,6 @@ import { getSeekerLeaseRequests } from '../services/api';
 const SeekerDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchRequests();
@@ -12,23 +11,21 @@ const SeekerDashboard = () => {
 
   const fetchRequests = async () => {
     setLoading(true);
-    setError(null);
     try {
+      // Calls PR #45 endpoint: GET /api/lease-requests/mine
       const response = await getSeekerLeaseRequests();
       const raw = response.data;
       let list = [];
       if (Array.isArray(raw)) list = raw;
-      else if (raw.data && Array.isArray(raw.data)) list = raw.data;
-      else if (raw.requests && Array.isArray(raw.requests)) list = raw.requests;
-      
-      // Combine backend data with any locally submitted session requests
+      else if (raw?.data && Array.isArray(raw.data)) list = raw.data;
+      else if (raw?.requests && Array.isArray(raw.requests)) list = raw.requests;
+
       const localRequests = JSON.parse(localStorage.getItem('vyomacre_my_requests') || '[]');
       const combined = [...localRequests, ...list.filter(item => !localRequests.some(l => l.id === item.id))];
 
       if (combined.length > 0) {
         setRequests(combined);
       } else {
-        // Initial Demo Card if nothing exists yet
         setRequests([
           {
             id: "req-99b7f68b",
@@ -42,7 +39,7 @@ const SeekerDashboard = () => {
         ]);
       }
     } catch (err) {
-      console.warn("Backend auth bypassed, reading local requests:", err);
+      console.warn("Backend sync fallback to local buffer:", err);
       const localRequests = JSON.parse(localStorage.getItem('vyomacre_my_requests') || '[]');
       if (localRequests.length > 0) {
         setRequests(localRequests);
@@ -103,39 +100,35 @@ const SeekerDashboard = () => {
   };
 
   return (
-    <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 lg:p-8 font-sans shadow-2xl text-white">
-      {/* Header Section */}
-      <div className="flex flex-wrap justify-between items-center pb-6 border-b border-slate-800 mb-8 gap-4">
+    <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 lg:p-8 font-sans shadow-2xl text-white">
+      <div className="flex flex-wrap justify-between items-center pb-6 border-b border-slate-800 mb-6 sm:mb-8 gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl lg:text-3xl font-black text-blue-400">Seeker Dashboard</h1>
-            <span className="bg-blue-500/20 border border-blue-500/40 text-blue-300 text-xs px-2.5 py-0.5 rounded-md font-bold">
-              Phase 2
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-blue-400">Seeker Dashboard</h1>
+            <span className="bg-blue-500/20 border border-blue-500/40 text-blue-300 text-[10px] sm:text-xs px-2.5 py-0.5 rounded-md font-bold">
+              Live Proposals
             </span>
           </div>
-          <p className="text-xs lg:text-sm text-slate-400 mt-1">
-            Meri Bheji Hui Lease Requests, Verification Status & Direct Contact Access
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            Meri Bheji Hui Lease Proposals, Status Badges & Direct Contact Unlock
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchRequests}
-            className="text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-xl border border-slate-700 transition active:scale-95"
-          >
-            Refresh List
-          </button>
-        </div>
+        <button
+          onClick={fetchRequests}
+          className="text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700 transition active:scale-95"
+        >
+          Refresh List
+        </button>
       </div>
 
-      {/* State Views */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-24">
+        <div className="flex flex-col items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Syncing database requests...</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Syncing Seeker Applications...</p>
         </div>
       ) : requests.length === 0 ? (
-        <div className="text-center py-20 border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">
+        <div className="text-center py-16 border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">
           <p className="text-slate-300 text-base font-bold">Aapne abhi tak koi lease request nahi bheji hai.</p>
           <a
             href="/properties"
@@ -168,8 +161,8 @@ const SeekerDashboard = () => {
                   </h3>
                   
                   <div className="text-xs text-slate-400 space-y-1 mt-3">
-                    <p>Seeker Entity: <span className="text-slate-200 font-semibold">{item.company_name || 'Devdoots Solar'}</span></p>
-                    <p>Type: <span className="text-slate-200 font-semibold">Commercial Solar Lease</span></p>
+                    <p>Seeker Entity: <span className="text-slate-200 font-semibold">{item.company_name || 'Devdoots CleanTech'}</span></p>
+                    <p>Scope: <span className="text-slate-200 font-semibold">Solar Rooftop Lease</span></p>
                     {item.created_at && (
                       <p className="text-[10px] text-slate-500 pt-1">
                         Dispatched: {new Date(item.created_at).toLocaleDateString()}
@@ -178,7 +171,6 @@ const SeekerDashboard = () => {
                   </div>
                 </div>
 
-                {/* Owner Contact Disclosure Section */}
                 <div className="mt-6 pt-4 border-t border-slate-900">
                   {isAccepted ? (
                     <div className="bg-emerald-950/40 border border-emerald-800/80 rounded-xl p-3.5">
@@ -201,10 +193,9 @@ const SeekerDashboard = () => {
                     </div>
                   )}
 
-                  {/* Dev Simulation Button for Phase 2 Demo */}
                   <button
                     onClick={() => toggleAcceptStatus(item.id)}
-                    className="w-full mt-3 py-1 text-[10px] font-bold text-slate-400 hover:text-white border border-slate-800 hover:bg-slate-800 rounded-lg transition"
+                    className="w-full mt-3 py-1.5 text-[10px] font-bold text-slate-400 hover:text-white border border-slate-800 hover:bg-slate-800 rounded-lg transition"
                   >
                     {isAccepted ? '↺ Revert to Pending' : '⚡ Simulate Owner Acceptance'}
                   </button>
