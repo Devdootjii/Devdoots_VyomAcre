@@ -97,7 +97,7 @@ def _record_scanned_zone(db, lat: float, lon: float, result: dict) -> None:
         # last_scanned_at / updated_at refresh via server_default/onupdate on commit
 
 
-def run_area_verification(roof_id: uuid.UUID, lat: float, lon: float, submitted_area_sqft: float) -> None:
+def run_area_verification(roof_id: uuid.UUID, lat: float, lon: float, submitted_area_sqft: float | None) -> None:
     """
     Background task: fetch a GEE area estimate for (lat, lon) — via the
     Skip & Move wrapper, so a recently-scanned grid zone is reused instead
@@ -130,22 +130,33 @@ def run_area_verification(roof_id: uuid.UUID, lat: float, lon: float, submitted_
         gee_area = result["area_sqft"]
         roof.gee_estimated_area_sqft = gee_area
 
-        diff_ratio = abs(gee_area - submitted_area_sqft) / max(submitted_area_sqft, 1)
-
-        if diff_ratio <= AREA_TOLERANCE_RATIO:
+        if submitted_area_sqft is None:
+            # Owner left estimated_area_sqft blank (it's optional on the form) —
+            # there's nothing to cross-check, so just accept the GEE estimate
+            # instead of computing a diff against a missing value.
             roof.verification_status = VerificationStatusEnum.verified
             roof.verification_message = (
-                f"Submitted area ({submitted_area_sqft} sq ft) is consistent with the "
-                f"satellite estimate ({gee_area} sq ft)."
+                f"No area was submitted by the owner — using satellite estimate "
+                f"({gee_area} sq ft)."
                 + (" (reused a recent scan for this area)" if result.get("skipped") else "")
             )
         else:
-            roof.verification_status = VerificationStatusEnum.flagged
-            roof.verification_message = (
-                f"Submitted area ({submitted_area_sqft} sq ft) differs significantly from "
-                f"the satellite estimate ({gee_area} sq ft) — flagged for manual review."
-                + (" (reused a recent scan for this area)" if result.get("skipped") else "")
-            )
+            diff_ratio = abs(gee_area - submitted_area_sqft) / max(submitted_area_sqft, 1)
+
+            if diff_ratio <= AREA_TOLERANCE_RATIO:
+                roof.verification_status = VerificationStatusEnum.verified
+                roof.verification_message = (
+                    f"Submitted area ({submitted_area_sqft} sq ft) is consistent with the "
+                    f"satellite estimate ({gee_area} sq ft)."
+                    + (" (reused a recent scan for this area)" if result.get("skipped") else "")
+                )
+            else:
+                roof.verification_status = VerificationStatusEnum.flagged
+                roof.verification_message = (
+                    f"Submitted area ({submitted_area_sqft} sq ft) differs significantly from "
+                    f"the satellite estimate ({gee_area} sq ft) — flagged for manual review."
+                    + (" (reused a recent scan for this area)" if result.get("skipped") else "")
+                )
 
         db.commit()
         logger.info(

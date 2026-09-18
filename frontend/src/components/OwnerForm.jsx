@@ -1,548 +1,318 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { submitRoofDetails } from '../services/api';
 
-export default function OwnerForm({ onSubmitSuccess }) {
-  const [step, setStep] = useState(1);
+const ROOF_TYPES = [
+  { value: 'flat', label: 'Flat' },
+  { value: 'sloped', label: 'Sloped' },
+  { value: 'tin', label: 'Tin' },
+  { value: 'concrete', label: 'Concrete' },
+  { value: 'other', label: 'Other' },
+];
 
-  const [formData, setFormData] = useState({
-    owner_name: '',
-    phone_number: '',
-    property_type: 'roof',
-    area_sqft: '',
-    roof_type: 'flat',
-    latitude: 26.8467,
-    longitude: 80.9462,
-    photos: []
-  });
+const initialFormData = {
+  roof_type: 'flat',
+  address: '',
+  city: '',
+  latitude: '',
+  longitude: '',
+  area_sqft: '',
+};
 
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const OwnerForm = () => {
+  const navigate = useNavigate();
 
-  const estimatedIncome = formData.area_sqft
-    ? Number(formData.area_sqft) * 15
-    : 0;
+  const [formData, setFormData] = useState(initialFormData);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const updateField = (field, value) => {
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
     setFormData((previous) => ({
       ...previous,
-      [field]: value
+      [name]: value,
     }));
 
-    setErrorMsg('');
-    setSuccessMsg('');
+    setError('');
+    setMessage('');
   };
 
-  // STEP 1 VALIDATION
-  const validateStep1 = () => {
-    if (!formData.owner_name.trim()) {
-      setErrorMsg('Owner name is required.');
-      return false;
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setError('');
+    setMessage('');
+
+    // Required fields
+    if (
+      !formData.roof_type ||
+      !formData.address.trim() ||
+      !formData.city.trim() ||
+      formData.latitude === '' ||
+      formData.longitude === ''
+    ) {
+      setError('Please fill all required fields.');
+      return;
     }
 
-    if (!/^\d{10}$/.test(formData.phone_number)) {
-      setErrorMsg('Phone number must be exactly 10 digits.');
-      return false;
-    }
-
-    return true;
-  };
-
-  // STEP 2 VALIDATION
-  const validateStep2 = () => {
-    if (!formData.area_sqft || Number(formData.area_sqft) <= 0) {
-      setErrorMsg('Property area must be greater than 0.');
-      return false;
-    }
-
+    // Latitude validation
     const latitude = Number(formData.latitude);
     const longitude = Number(formData.longitude);
 
     if (
-      !Number.isFinite(latitude) ||
+      Number.isNaN(latitude) ||
       latitude < -90 ||
       latitude > 90
     ) {
-      setErrorMsg('Latitude must be between -90 and 90.');
-      return false;
+      setError('Please enter a valid latitude between -90 and 90.');
+      return;
     }
 
+    // Longitude validation
     if (
-      !Number.isFinite(longitude) ||
+      Number.isNaN(longitude) ||
       longitude < -180 ||
       longitude > 180
     ) {
-      setErrorMsg('Longitude must be between -180 and 180.');
-      return false;
-    }
-
-    // Backend accepts these exact lowercase roof_type values
-    if (
-      formData.property_type === 'roof' &&
-      !['flat', 'sloped', 'tin', 'concrete', 'other'].includes(
-        formData.roof_type
-      )
-    ) {
-      setErrorMsg('Please select a valid roof type.');
-      return false;
-    }
-
-    return true;
-  };
-
-  const isStep1Valid =
-    formData.owner_name.trim() &&
-    /^\d{10}$/.test(formData.phone_number);
-
-  const isStep2Valid =
-    formData.area_sqft &&
-    Number(formData.area_sqft) > 0 &&
-    Number.isFinite(Number(formData.latitude)) &&
-    Number(formData.latitude) >= -90 &&
-    Number(formData.latitude) <= 90 &&
-    Number.isFinite(Number(formData.longitude)) &&
-    Number(formData.longitude) >= -180 &&
-    Number(formData.longitude) <= 180 &&
-    (
-      formData.property_type !== 'roof' ||
-      ['flat', 'sloped', 'tin', 'concrete', 'other'].includes(
-        formData.roof_type
-      )
-    );
-
-  const handleNext = () => {
-    setErrorMsg('');
-
-    if (step === 1 && !validateStep1()) {
+      setError('Please enter a valid longitude between -180 and 180.');
       return;
     }
 
-    if (step === 2 && !validateStep2()) {
-      return;
-    }
-
-    setStep((previous) => previous + 1);
-  };
-
-  const handleBack = () => {
-    setErrorMsg('');
-    setSuccessMsg('');
-    setStep((previous) => previous - 1);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    if (!validateStep1() || !validateStep2()) {
-      return;
-    }
-
-    const submittedData = {
-      ...formData,
-      area_sqft: Number(formData.area_sqft),
-      latitude: Number(formData.latitude),
-      longitude: Number(formData.longitude)
+    // Prepare backend payload
+    const roofData = {
+      roof_type: formData.roof_type,
+      address: formData.address.trim(),
+      city: formData.city.trim(),
+      latitude,
+      longitude,
     };
 
-    setIsSubmitting(true);
+    // area_sqft is optional
+    if (formData.area_sqft !== '') {
+      const area = Number(formData.area_sqft);
+
+      if (Number.isNaN(area) || area <= 0) {
+        setError('Area must be a valid positive number.');
+        return;
+      }
+
+      roofData.area_sqft = area;
+    }
 
     try {
-      await submitRoofDetails(submittedData);
+      setLoading(true);
 
-      // Update App.jsx only after successful backend response
-      onSubmitSuccess?.({
-        ...submittedData,
-        status: 'Pending'
-      });
+      await submitRoofDetails(roofData);
 
-      setSuccessMsg(
-        'Property submitted successfully! Status: Pending Verification.'
-      );
+      setMessage('Roof listing submitted successfully!');
 
-      // Reset form
-      setFormData({
-        owner_name: '',
-        phone_number: '',
-        property_type: 'roof',
-        area_sqft: '',
-        roof_type: 'flat',
-        latitude: 26.8467,
-        longitude: 80.9462,
-        photos: []
-      });
+      setFormData(initialFormData);
 
-      setStep(1);
-    } catch (apiError) {
-      console.error('Roof submission failed:', apiError);
+      setTimeout(() => {
+        navigate('/owner-dashboard');
+      }, 1200);
+    } catch (err) {
+      console.error('Roof submission failed:', err);
 
-      setErrorMsg(
-        apiError?.response?.data?.detail ||
-        apiError?.response?.data?.message ||
-        'Unable to submit property. Please try again.'
+      setError(
+        err.response?.data?.message ||
+        err.response?.data?.detail ||
+        err.message ||
+        'Unable to submit roof listing.'
       );
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
+    <div className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-8">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-cyan-400">
+            Owner Portal
+          </p>
 
-      {/* Header */}
-      <div className="mb-8">
-        <p className="text-sm font-bold uppercase tracking-widest text-sky-600">
-          Owner Portal
-        </p>
+          <h1 className="text-3xl font-bold sm:text-4xl">
+            List Your Roof
+          </h1>
 
-        <h2 className="mt-2 text-3xl font-black text-slate-900">
-          List Your Property
-        </h2>
+          <p className="mt-2 text-slate-400">
+            Add your rooftop details so companies can discover your
+            property.
+          </p>
+        </div>
 
-        <p className="mt-2 text-sm text-slate-500">
-          Submit your roof or plot details for verification.
-        </p>
-      </div>
-
-      {/* Step Indicator */}
-      <div className="mb-8 grid grid-cols-3 gap-2">
-
-        <div
-          className={`rounded-lg p-3 text-center text-sm font-bold ${step >= 1
-              ? 'bg-sky-500 text-white'
-              : 'bg-slate-100 text-slate-400'
-            }`}
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl sm:p-8"
         >
-          1. Owner
-        </div>
-
-        <div
-          className={`rounded-lg p-3 text-center text-sm font-bold ${step >= 2
-              ? 'bg-sky-500 text-white'
-              : 'bg-slate-100 text-slate-400'
-            }`}
-        >
-          2. Property
-        </div>
-
-        <div
-          className={`rounded-lg p-3 text-center text-sm font-bold ${step >= 3
-              ? 'bg-emerald-500 text-white'
-              : 'bg-slate-100 text-slate-400'
-            }`}
-        >
-          3. Review
-        </div>
-
-      </div>
-
-      {/* Error Message */}
-      {errorMsg && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">
-          {errorMsg}
-        </div>
-      )}
-
-      {/* Success Message */}
-      {successMsg && (
-        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
-          {successMsg}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-
-        {/* ================= STEP 1 ================= */}
-        {step === 1 && (
-          <div className="space-y-5">
-
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                Owner Name
-              </label>
-
-              <input
-                type="text"
-                placeholder="Enter owner name"
-                value={formData.owner_name}
-                onChange={(e) =>
-                  updateField('owner_name', e.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 p-3 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                Phone Number
-              </label>
-
-              <input
-                type="tel"
-                inputMode="numeric"
-                placeholder="10 digit phone number"
-                maxLength="10"
-                value={formData.phone_number}
-                onChange={(e) =>
-                  updateField(
-                    'phone_number',
-                    e.target.value.replace(/\D/g, '')
-                  )
-                }
-                className="w-full rounded-xl border border-slate-300 p-3 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={!isStep1Valid}
-              className={`w-full rounded-xl py-3 font-bold text-white transition ${isStep1Valid
-                  ? 'bg-sky-500 hover:bg-sky-600'
-                  : 'cursor-not-allowed bg-slate-300'
-                }`}
+          {/* Roof Type */}
+          <div className="mb-6">
+            <label
+              htmlFor="roof_type"
+              className="mb-2 block text-sm font-medium text-slate-200"
             >
-              Continue to Property Details →
-            </button>
+              Roof Type <span className="text-red-400">*</span>
+            </label>
 
+            <select
+              id="roof_type"
+              name="roof_type"
+              value={formData.roof_type}
+              onChange={handleChange}
+              required
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none focus:border-cyan-400"
+            >
+              {ROOF_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
 
-        {/* ================= STEP 2 ================= */}
-        {step === 2 && (
-          <div className="space-y-5">
+          {/* Address */}
+          <div className="mb-6">
+            <label
+              htmlFor="address"
+              className="mb-2 block text-sm font-medium text-slate-200"
+            >
+              Address <span className="text-red-400">*</span>
+            </label>
 
+            <textarea
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              placeholder="Enter complete rooftop address"
+              required
+              rows={3}
+              className="w-full resize-none rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-cyan-400"
+            />
+          </div>
+
+          {/* City */}
+          <div className="mb-6">
+            <label
+              htmlFor="city"
+              className="mb-2 block text-sm font-medium text-slate-200"
+            >
+              City <span className="text-red-400">*</span>
+            </label>
+
+            <input
+              id="city"
+              name="city"
+              type="text"
+              value={formData.city}
+              onChange={handleChange}
+              placeholder="e.g. Lucknow"
+              required
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-cyan-400"
+            />
+          </div>
+
+          {/* Coordinates */}
+          <div className="mb-6 grid gap-6 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                Property Type
-              </label>
-
-              <select
-                value={formData.property_type}
-                onChange={(e) =>
-                  updateField('property_type', e.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 p-3 text-slate-700 outline-none focus:border-sky-500"
+              <label
+                htmlFor="latitude"
+                className="mb-2 block text-sm font-medium text-slate-200"
               >
-                <option value="roof">Roof</option>
-                <option value="plot">Plot</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                Area (sq ft)
+                Latitude <span className="text-red-400">*</span>
               </label>
 
               <input
-                type="number"
-                min="1"
-                placeholder="Enter property area"
-                value={formData.area_sqft}
-                onChange={(e) =>
-                  updateField('area_sqft', e.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-sky-500"
-              />
-            </div>
-
-            {/* Roof Type */}
-            {formData.property_type === 'roof' && (
-              <div>
-                <label className="mb-2 block text-sm font-bold text-slate-700">
-                  Roof Type
-                </label>
-
-                <select
-                  value={formData.roof_type}
-                  onChange={(e) =>
-                    updateField('roof_type', e.target.value)
-                  }
-                  className="w-full rounded-xl border border-slate-300 p-3 text-slate-700 outline-none focus:border-sky-500"
-                >
-                  <option value="flat">Flat</option>
-                  <option value="sloped">Sloped</option>
-                  <option value="tin">Tin</option>
-                  <option value="concrete">Concrete</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            )}
-
-            {/* Latitude */}
-            <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                Latitude
-              </label>
-
-              <input
+                id="latitude"
+                name="latitude"
                 type="number"
                 step="any"
-                min="-90"
-                max="90"
                 value={formData.latitude}
-                onChange={(e) =>
-                  updateField('latitude', e.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-sky-500"
+                onChange={handleChange}
+                placeholder="e.g. 26.8467"
+                required
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-cyan-400"
               />
             </div>
 
-            {/* Longitude */}
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-700">
-                Longitude
+              <label
+                htmlFor="longitude"
+                className="mb-2 block text-sm font-medium text-slate-200"
+              >
+                Longitude <span className="text-red-400">*</span>
               </label>
 
               <input
+                id="longitude"
+                name="longitude"
                 type="number"
                 step="any"
-                min="-180"
-                max="180"
                 value={formData.longitude}
-                onChange={(e) =>
-                  updateField('longitude', e.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 p-3 outline-none focus:border-sky-500"
+                onChange={handleChange}
+                placeholder="e.g. 80.9462"
+                required
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-cyan-400"
               />
             </div>
-
-            {/* Estimated Income */}
-            {formData.property_type === 'roof' && (
-              <div className="rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-800">
-                Estimated Monthly Earnings: ₹
-                {estimatedIncome.toLocaleString()}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-
-              <button
-                type="button"
-                onClick={handleBack}
-                className="w-1/3 rounded-xl border border-slate-300 py-3 font-bold text-slate-700 transition hover:bg-slate-100"
-              >
-                ← Back
-              </button>
-
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={!isStep2Valid}
-                className={`w-2/3 rounded-xl py-3 font-bold text-white transition ${isStep2Valid
-                    ? 'bg-sky-500 hover:bg-sky-600'
-                    : 'cursor-not-allowed bg-slate-300'
-                  }`}
-              >
-                Review Details →
-              </button>
-
-            </div>
-
           </div>
-        )}
 
-        {/* ================= STEP 3 ================= */}
-        {step === 3 && (
-          <div className="space-y-6">
+          {/* Area */}
+          <div className="mb-8">
+            <label
+              htmlFor="area_sqft"
+              className="mb-2 block text-sm font-medium text-slate-200"
+            >
+              Area (sq ft)
+            </label>
 
-            {/* Owner Review */}
-            <div className="rounded-2xl bg-slate-50 p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                Owner
-              </p>
+            <input
+              id="area_sqft"
+              name="area_sqft"
+              type="number"
+              min="0"
+              step="any"
+              value={formData.area_sqft}
+              onChange={handleChange}
+              placeholder="Optional"
+              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white placeholder-slate-500 outline-none focus:border-cyan-400"
+            />
 
-              <p className="mt-2 text-lg font-bold text-slate-900">
-                {formData.owner_name}
-              </p>
-
-              <p className="mt-1 text-sm text-slate-500">
-                {formData.phone_number}
-              </p>
-            </div>
-
-            {/* Property Review */}
-            <div className="rounded-2xl bg-slate-50 p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                Property
-              </p>
-
-              <div className="mt-3 space-y-2 text-sm">
-
-                <p>
-                  <span className="font-bold">Type:</span>{' '}
-                  {formData.property_type}
-                </p>
-
-                <p>
-                  <span className="font-bold">Area:</span>{' '}
-                  {formData.area_sqft} sq ft
-                </p>
-
-                {formData.property_type === 'roof' && (
-                  <p>
-                    <span className="font-bold">Roof Type:</span>{' '}
-                    {formData.roof_type}
-                  </p>
-                )}
-
-                <p>
-                  <span className="font-bold">Latitude:</span>{' '}
-                  {formData.latitude}
-                </p>
-
-                <p>
-                  <span className="font-bold">Longitude:</span>{' '}
-                  {formData.longitude}
-                </p>
-
-              </div>
-            </div>
-
-            {/* Ready Message */}
-            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5">
-              <p className="text-sm font-bold text-sky-700">
-                Ready to Submit
-              </p>
-
-              <p className="mt-1 text-sm text-sky-600">
-                Please verify your details before submitting the property.
-              </p>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex gap-3">
-
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={isSubmitting}
-                className="w-1/3 rounded-xl border border-slate-300 py-3 font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                ← Back
-              </button>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`w-2/3 rounded-xl py-3 font-bold text-white transition ${isSubmitting
-                    ? 'cursor-not-allowed bg-slate-400'
-                    : 'bg-emerald-500 hover:bg-emerald-600'
-                  }`}
-              >
-                {isSubmitting
-                  ? 'Submitting...'
-                  : 'Submit Property'}
-              </button>
-
-            </div>
-
+            <p className="mt-2 text-sm text-cyan-400">
+              AI satellite khud calculate karega
+            </p>
           </div>
-        )}
 
-      </form>
+          {/* Error */}
+          {error && (
+            <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          {/* Success */}
+          {message && (
+            <div className="mb-5 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+              {message}
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-xl bg-cyan-500 px-6 py-3.5 font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? 'Submitting...' : 'Submit Roof Listing'}
+          </button>
+        </form>
+      </div>
     </div>
   );
-}
+};
+
+export default OwnerForm; 
