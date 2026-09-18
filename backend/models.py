@@ -189,6 +189,19 @@ class LeaseRequest(Base):
     )
     company_name: Mapped[str] = mapped_column(String(150), nullable=False)
 
+    # Identity & privacy fix (Sep 2026): the seeker (User) who actually
+    # sent this request, taken from the JWT token at creation time — never
+    # from the request body. Nullable because rows created before this
+    # column existed have no linked seeker (test data); ondelete="SET NULL"
+    # so deleting a user account doesn't cascade-delete the lease requests
+    # they sent, it just orphans the identity link.
+    seeker_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     status: Mapped[LeaseStatusEnum] = mapped_column(
         String(20),
         nullable=False,
