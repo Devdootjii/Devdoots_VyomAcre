@@ -91,6 +91,7 @@ const MapDashboard = () => {
   const [radarActive, setRadarActive] = useState(true);
   const [leaseSubmitting, setLeaseSubmitting] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [mapView, setMapView] = useState('dark');
 
   useEffect(() => {
     fetchData();
@@ -345,6 +346,14 @@ const MapDashboard = () => {
           <Crosshair size={12} />
           My Location
         </button>
+
+        <button
+          onClick={() => setMapView((v) => (v === 'satellite' ? 'dark' : 'satellite'))}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#1C2A22] bg-[#0A1410] px-3 py-1.5 text-xs font-medium text-[#C9D6CC] transition-all duration-300 hover:border-[#00E585]/40 hover:text-[#00E585]"
+        >
+          <Satellite size={12} />
+          {mapView === 'satellite' ? 'Dark view' : 'Satellite view'}
+        </button>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -358,7 +367,7 @@ const MapDashboard = () => {
             </div>
           )}
 
-          <MapContainer center={[26.8500, 80.9500]} zoom={13} maxZoom={16} className="h-full w-full">
+          <MapContainer center={[26.8500, 80.9500]} zoom={13} maxZoom={18} className="h-full w-full">
             <LocationController userLocation={userLocation} />
 
             {/* User's live location — pulsing dot */}
@@ -369,15 +378,33 @@ const MapDashboard = () => {
                 </Popup>
               </Marker>
             )}
-            {/* Dark tiles — Esri World Dark Gray (no API key, free) */}
-            <TileLayer
-n              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-              attribution="Tiles © Esri — Esri, DeLorme, NAVTEQ"
-            />
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
-              attribution=""
-            />
+            {/* Map tiles — satellite or dark, toggle in the filter bar */}
+            {mapView === 'satellite' ? (
+              <TileLayer
+                key="sat"
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                attribution="Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics"
+                maxZoom={18}
+                maxNativeZoom={17}
+              />
+            ) : (
+              <>
+                <TileLayer
+                  key="dark"
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+                  attribution="Tiles © Esri — Esri, DeLorme, NAVTEQ"
+                  maxZoom={18}
+                  maxNativeZoom={16}
+                />
+                <TileLayer
+                  key="darkref"
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+                  attribution=""
+                  maxZoom={18}
+                  maxNativeZoom={16}
+                />
+              </>
+            )}
 
             {/* Radar Scanned Zones */}
             {radarActive && scannedZones.map((zone) => {
