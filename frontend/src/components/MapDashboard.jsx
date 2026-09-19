@@ -56,6 +56,22 @@ const LocationController = ({ userLocation }) => {
   return null;
 };
 
+// Pulsing white-green dot for the user's live location
+const createUserPin = () => {
+  return L.divIcon({
+    className: 'custom-radar-pin',
+    html: `
+      <div style="position: relative; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">
+        <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background: #F4F8F5; opacity: 0.3; animation: radarPulse 1.6s ease-out infinite;"></div>
+        <div style="position: relative; width: 12px; height: 12px; border-radius: 50%; background: #F4F8F5; border: 2.5px solid #00E585; box-shadow: 0 0 14px rgba(0,229,133,0.9);"></div>
+      </div>
+    `,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -14]
+  });
+};
+
 const SELECT_CLS =
   'bg-[#0A1410] text-[#E7EFE9] text-xs px-2.5 py-1.5 rounded-lg outline-none border border-[#1C2A22] transition-colors focus:border-[#00E585]/50';
 
@@ -344,6 +360,15 @@ const MapDashboard = () => {
 
           <MapContainer center={[26.8500, 80.9500]} zoom={13} maxZoom={16} className="h-full w-full">
             <LocationController userLocation={userLocation} />
+
+            {/* User's live location — pulsing dot */}
+            {userLocation && (
+              <Marker position={userLocation} icon={createUserPin()}>
+                <Popup>
+                  <p className="text-xs font-semibold text-[#E7EFE9]">You are here</p>
+                </Popup>
+              </Marker>
+            )}
             {/* Dark tiles — Esri World Dark Gray (no API key, free) */}
             <TileLayer
 n              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
