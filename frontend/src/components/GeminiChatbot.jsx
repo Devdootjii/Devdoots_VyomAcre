@@ -1,12 +1,67 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { X, Send } from 'lucide-react';
 import { askAI } from '../services/api';
 import { useUI } from '../context/UIContext';
 
-export default function GeminiChatbot() {
-  const { isAppLoading } = useUI();
+/* ============================================================
+   VyomAcre — AI Assistant (global chatbot)
+   - Har page pe bottom-right launcher (poori website pe)
+   - UIContext ka isChatbotOpen — Help page ka button bhi isi se kholta hai
+   - Panel ke bahar kahin bhi click / Esc = band
+   - Backend: POST /api/ai/ask (Gemini + 429 retry + cache)
+   ============================================================ */
 
-  const [isOpen, setIsOpen] = useState(false);
+/* ---------- cute robot (custom SVG, no emoji) ---------- */
+function RobotFace({ size = 30, body = '#04160C', accent = '#00E585', thinking = false }) {
+  return (
+    <span className="relative inline-flex" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 40 40" fill="none" width={size} height={size} aria-hidden="true" className="vy-robot">
+
+        {/* thought dots — sirf jab AI soch raha ho */}
+        {thinking && (
+          <g fill={accent}>
+            <circle className="vy-think-dot" cx="16" cy="2" r="1.5" />
+            <circle className="vy-think-dot" cx="20" cy="1" r="1.7" />
+            <circle className="vy-think-dot" cx="24" cy="2" r="1.5" />
+          </g>
+        )}
+
+        {/* antenna */}
+        <line x1="20" y1="5" x2="20" y2="10" stroke={body} strokeWidth="2.2" strokeLinecap="round" />
+        <circle cx="20" cy="4.5" r="2.4" fill={body} className="vy-antenna" />
+
+        {/* ears */}
+        <rect x="3.5" y="15" width="3.5" height="8" rx="1.75" fill={body} />
+        <rect x="33" y="15" width="3.5" height="8" rx="1.75" fill={body} />
+
+        {/* head */}
+        <rect x="7" y="9.5" width="26" height="19" rx="9" fill={body} />
+
+        {/* eyes */}
+        <circle className="vy-eye" cx="15" cy="19" r="2.5" fill={accent} />
+        <circle className="vy-eye" cx="25" cy="19" r="2.5" fill={accent} />
+
+        {/* smile */}
+        <path d="M15.5 24 Q20 27.5 24.5 24" stroke={accent} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+
+        {/* body */}
+        <rect x="12" y="30" width="16" height="8" rx="4" fill={body} />
+        <circle cx="20" cy="34" r="1.8" fill={accent} className="vy-antenna" />
+      </svg>
+    </span>
+  );
+}
+
+const SUGGESTIONS = [
+  'Roof list kaise karu?',
+  'Kitni kamai ho sakti hai?',
+  'Satellite verification kya hai?',
+];
+
+export default function GeminiChatbot() {
+  const { isChatbotOpen, openChatbot, closeChatbot } = useUI();
+
   const [messages, setMessages] = useState([
     {
       role: 'ai',
@@ -15,61 +70,46 @@ export default function GeminiChatbot() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
   const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isChatbotOpen]);
 
-  const handleSendMessage = async () => {
-    const trimmedInput = input.trim();
+  /* Esc se band karo */
+  useEffect(() => {
+    if (!isChatbotOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') closeChatbot(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isChatbotOpen, closeChatbot]);
 
-    if (!trimmedInput) return;
+  const send = async (text) => {
+    const trimmed = (text !== undefined ? text : input).trim();
+    if (!trimmed || isLoading) return;
 
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', text: trimmedInput },
-    ]);
-
+    setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const result = await askAI(trimmedInput);
+      const result = await askAI(trimmed);
 
-      if (
-        result &&
-        result.status === 'success' &&
-        result.data &&
-        result.data.answer
-      ) {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'ai', text: result.data.answer },
-        ]);
+      if (result && result.status === 'success' && result.data && result.data.answer) {
+        setMessages((prev) => [...prev, { role: 'ai', text: result.data.answer }]);
       } else {
-        console.error('[VyomAcre AI] Backend error format:', result);
-
         setMessages((prev) => [
           ...prev,
-          {
-            role: 'ai',
-            text: 'माफ़ कीजिये, सर्वर से सही जवाब नहीं मिल पाया। कृपया थोड़ी देर बाद प्रयास करें।',
-          },
+          { role: 'ai', text: 'माफ़ कीजिये, सर्वर से सही जवाब नहीं मिल पाया। कृपया थोड़ी देर बाद प्रयास करें।' },
         ]);
       }
     } catch (error) {
       console.error('[VyomAcre AI] Network error:', error);
-
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'ai',
-          text: 'नेटवर्क में कोई समस्या है या VyomAcre सर्वर डाउन है। कृपया अपना कनेक्शन जांचें।',
-        },
+        { role: 'ai', text: 'नेटवर्क में कोई समस्या है या VyomAcre सर्वर सो रहा है (cold start) — ek baar backend URL browser me kholo, phir dobara try karo.' },
       ]);
     } finally {
       setIsLoading(false);
@@ -79,336 +119,179 @@ export default function GeminiChatbot() {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      send();
     }
   };
 
-  if (isAppLoading) {
-    return null;
-  }
-
   return (
-    <motion.div
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{
-        type: 'spring',
-        stiffness: 260,
-        damping: 20,
-        delay: 0.5,
-      }}
-      className="fixed bottom-5 right-5 z-[9999] flex flex-col items-end sm:bottom-6 sm:right-6"
-    >
+    <div className="fixed bottom-5 right-5 z-[9999] flex flex-col items-end sm:bottom-6 sm:right-6">
+
+      {/* Backdrop — panel ke bahar kahin bhi click karo, chat band */}
+      {isChatbotOpen && (
+        <div
+          onClick={closeChatbot}
+          aria-hidden="true"
+          className="fixed inset-0 z-[9998] bg-[#050A08]/40 backdrop-blur-[1px]"
+        />
+      )}
+
+      {/* ===== Panel ===== */}
       <AnimatePresence>
-        {isOpen && (
+        {isChatbotOpen && (
           <motion.div
-            initial={{
-              opacity: 0,
-              y: 30,
-              scale: 0.96,
-              transformOrigin: 'bottom right',
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-            }}
-            exit={{
-              opacity: 0,
-              y: 24,
-              scale: 0.96,
-            }}
-            transition={{
-              duration: 0.3,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="mb-4 flex h-[min(600px,78vh)] w-[calc(100vw-40px)] flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#020706]/95 backdrop-blur-2xl sm:w-[390px]"
-            style={{
-              boxShadow:
-                '0 24px 70px rgba(0,0,0,0.45), 0 0 35px rgba(0,255,135,0.06)',
-            }}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.96 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-[9999] mb-4 flex h-[min(600px,78vh)] w-[calc(100vw-40px)] flex-col overflow-hidden rounded-3xl border border-[#1C2A22] bg-[#0A1410]/95 backdrop-blur-2xl sm:w-[390px]"
+            style={{ boxShadow: '0 24px 70px rgba(0,0,0,0.5), 0 0 35px rgba(0,229,133,0.06)' }}
           >
-            {/* =========================================================
-                HEADER
-            ========================================================= */}
-            <div className="relative flex items-center justify-between border-b border-white/10 bg-white/[0.025] px-4 py-4 backdrop-blur-xl">
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute left-1/2 top-0 h-16 w-40 -translate-x-1/2 rounded-full bg-[#00FF87]/[0.035] blur-2xl"
-              />
+            <style>{`
+@keyframes vy-blink { 0%, 91%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.08); } }
+.vy-eye { animation: vy-blink 4.2s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes vy-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.vy-antenna { animation: vy-pulse 1.7s ease-in-out infinite; }
+@keyframes vy-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.2px); } }
+.vy-robot { animation: vy-float 3.2s ease-in-out infinite; }
+@keyframes vy-think { 0% { opacity: 0; transform: translateY(2.5px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-3px); } }
+.vy-think-dot { animation: vy-think 1.25s infinite; transform-box: fill-box; }
+.vy-think-dot:nth-child(2) { animation-delay: 0.18s; }
+.vy-think-dot:nth-child(3) { animation-delay: 0.36s; }
+`}</style>
 
-              <div className="relative flex min-w-0 items-center gap-3">
-                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#00FF87]/20 bg-[#00FF87]/[0.045]">
-                  <motion.span
-                    animate={{
-                      opacity: [0.5, 1, 0.5],
-                      scale: [0.9, 1, 0.9],
-                    }}
-                    transition={{
-                      duration: 2.4,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    }}
-                    className="absolute h-2.5 w-2.5 rounded-full bg-[#00FF87] shadow-[0_0_12px_rgba(0,255,135,0.75)]"
-                  />
-
-                  <span className="relative h-1.5 w-1.5 rounded-full bg-[#00FF87]" />
-                </div>
-
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold tracking-[-0.015em] text-white">
-                    VyomAcre AI
-                  </h3>
-
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.7)]" />
-                    <span className="text-[9px] font-medium uppercase tracking-[0.16em] text-slate-500">
-                      Online
-                    </span>
-                  </div>
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-[#121D17] bg-[#08120C] px-5 py-4">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl border border-[#00E585]/25 bg-[#00E585]/10">
+                <RobotFace size={26} body="#00E585" accent="#04160C" thinking={isLoading} />
+              </span>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-[#F4F8F5]">Vyom Assistant</div>
+                <div className="flex items-center gap-1.5 text-[11px] text-[#00E585]">
+                  <span className={'h-1.5 w-1.5 rounded-full bg-[#00E585] ' + (isLoading ? 'animate-pulse' : '')} />
+                  {isLoading ? 'Soch raha hoon…' : 'Online · Gemini AI'}
                 </div>
               </div>
-
               <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.02] text-slate-500 outline-none transition-all duration-200 hover:border-white/15 hover:bg-white/[0.05] hover:text-white focus-visible:ring-2 focus-visible:ring-[#00FF87]/30"
-                aria-label="Close Chat"
+                onClick={closeChatbot}
+                aria-label="Close chat"
+                className="rounded-lg p-2 text-[#93A096] transition-colors hover:bg-[#0F1A14] hover:text-[#F4F8F5]"
               >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <path
-                    d="M6 6l12 12M18 6 6 18"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                <X size={17} />
               </button>
             </div>
 
-            {/* =========================================================
-                CHAT HISTORY
-            ========================================================= */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
-              <div className="flex flex-col gap-3">
-                {messages.map((msg, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{
-                      opacity: 0,
-                      y: 10,
-                      scale: 0.98,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
-                    }}
-                    transition={{
-                      duration: 0.25,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
+            {/* Messages */}
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+              {messages.map((m, i) => (
+                <div key={i} className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  <div
                     className={
-                      'max-w-[86%] rounded-2xl px-3.5 py-3 text-[13px] leading-6 ' +
-                      (msg.role === 'user'
-                        ? 'self-end rounded-br-sm border border-[#00FF87]/25 bg-[#00FF87]/10 text-white shadow-[0_0_18px_rgba(0,255,135,0.035)]'
-                        : 'self-start rounded-bl-sm border border-white/10 bg-white/[0.035] text-slate-300 backdrop-blur-md')
+                      'max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ' +
+                      (m.role === 'user'
+                        ? 'rounded-br-md bg-[#00E585] font-medium text-[#04160C]'
+                        : 'rounded-bl-md border border-[#1C2A22] bg-[#08120C] text-[#D7E2DA]')
                     }
                   >
-                    {msg.role === 'ai' && (
-                      <div className="mb-2 flex items-center gap-1.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_6px_rgba(0,255,135,0.7)]" />
-                        <span className="text-[8px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                          Vyom AI
-                        </span>
-                      </div>
-                    )}
+                    {m.text}
+                  </div>
+                </div>
+              ))}
 
-                    <span
-                      className={
-                        msg.role === 'user'
-                          ? 'text-slate-100'
-                          : 'text-slate-300'
-                      }
-                    >
-                      {msg.text}
-                    </span>
-                  </motion.div>
-                ))}
-
-                {/* Loading */}
-                {isLoading && (
-                  <motion.div
-                    initial={{
-                      opacity: 0,
-                      y: 8,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                    }}
-                    transition={{
-                      duration: 0.2,
-                    }}
-                    className="flex items-center gap-1.5 self-start rounded-2xl rounded-bl-sm border border-white/10 bg-white/[0.035] px-4 py-3 backdrop-blur-md"
-                    aria-label="AI is typing"
-                  >
-                    <span
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.65)]"
-                      style={{ animationDelay: '0ms' }}
-                    />
-
-                    <span
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.65)]"
-                      style={{ animationDelay: '150ms' }}
-                    />
-
-                    <span
-                      className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00FF87] shadow-[0_0_7px_rgba(0,255,135,0.65)]"
-                      style={{ animationDelay: '300ms' }}
-                    />
-                  </motion.div>
-                )}
-
-                <div ref={chatEndRef} />
-              </div>
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-[#1C2A22] bg-[#08120C] px-4 py-3">
+                    {[0, 1, 2].map((d) => (
+                      <span
+                        key={d}
+                        className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#00E585]"
+                        style={{ animationDelay: (d * 0.15) + 's' }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
             </div>
 
-            {/* =========================================================
-                INPUT AREA
-            ========================================================= */}
-            <div className="shrink-0 border-t border-white/10 bg-[#030A08] p-3 backdrop-blur-xl">
-              <div className="relative flex items-end">
-                <textarea
+            {/* Suggestion chips — jab tak pehla sawaal nahi hua */}
+            {messages.length === 1 && (
+              <div className="flex flex-wrap gap-2 px-4 pb-2">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => send(s)}
+                    className="rounded-full border border-[#24352B] px-3 py-1.5 text-xs text-[#93A096] transition-colors hover:border-[#00E585]/50 hover:text-[#00E585]"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Input */}
+            <div className="border-t border-[#121D17] bg-[#08120C] p-3">
+              <div className="flex items-center gap-2">
+                <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="अपना सवाल यहाँ लिखें..."
-                  disabled={isLoading}
-                  rows={1}
-                  className="min-h-[46px] max-h-28 w-full resize-none rounded-xl border border-white/10 bg-[#020706] py-3 pl-4 pr-12 text-sm text-white outline-none placeholder:text-slate-600 transition-all duration-200 hover:border-white/15 focus:border-[#00FF87]/50 focus:ring-2 focus:ring-[#00FF87]/10 focus:shadow-[0_0_20px_rgba(0,255,135,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Apna sawaal likho…"
+                  className="flex-1 rounded-xl border border-[#1C2A22] bg-[#0A1410] px-4 py-3 text-sm text-[#F4F8F5] outline-none transition-colors placeholder:text-[#5E6B62] focus:border-[#00E585]/50"
                 />
-
                 <button
-                  type="button"
-                  onClick={handleSendMessage}
+                  onClick={() => send()}
                   disabled={isLoading || !input.trim()}
-                  className={
-                    'absolute bottom-1.5 right-1.5 flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 ' +
-                    (isLoading || !input.trim()
-                      ? 'cursor-not-allowed bg-white/10 text-slate-600 shadow-none'
-                      : 'bg-[#00FF87] text-[#020706] shadow-[0_0_12px_rgba(0,255,135,0.25)] hover:shadow-[0_0_18px_rgba(0,255,135,0.4)] hover:brightness-105')
-                  }
-                  aria-label="Send Message"
+                  aria-label="Send message"
+                  className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#00E585] text-[#04160C] transition hover:brightness-110 disabled:opacity-30"
                 >
-                  <svg
-                    className="h-4 w-4 rotate-90"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path d="M10.894 2.553a1 1 0 0 0-1.788 0l-7 14a1 1 0 0 0 1.169 1.409l5-1.429A1 1 0 0 0 9 15.571V11a1 1 0 1 1 2 0v4.571a1 1 0 0 0 .725.962l5 1.428a1 1 0 0 0 1.17-1.408l-7-14Z" />
-                  </svg>
+                  <Send size={17} />
                 </button>
-              </div>
-
-              <div className="mt-2 flex items-center justify-between px-1">
-                <span className="text-[8px] uppercase tracking-[0.14em] text-slate-700">
-                  ENTER TO SEND
-                </span>
-
-                <span className="text-[8px] uppercase tracking-[0.14em] text-slate-700">
-                  SHIFT + ENTER FOR NEW LINE
-                </span>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* =========================================================
-          FLOATING ACTION BUTTON
-      ========================================================= */}
+      {/* ===== Launcher — har page pe ===== */}
       <motion.button
-        type="button"
-        whileHover={{
-          scale: 1.06,
-        }}
-        whileTap={{
-          scale: 0.94,
-        }}
-        onClick={() => setIsOpen(!isOpen)}
-        className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-[#00FF87] text-[#020706] shadow-[0_0_20px_rgba(0,255,135,0.4)] outline-none transition-shadow duration-300 hover:shadow-[0_0_28px_rgba(0,255,135,0.52)] focus-visible:ring-2 focus-visible:ring-[#00FF87] focus-visible:ring-offset-2 focus-visible:ring-offset-[#020706]"
-        aria-label={isOpen ? 'Close VyomAcre AI' : 'Open VyomAcre AI'}
-        aria-expanded={isOpen}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.5 }}
+        onClick={isChatbotOpen ? closeChatbot : openChatbot}
+        aria-label="Chat with Vyom AI assistant"
+        className="relative z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-[#00E585] text-[#04160C] shadow-[0_10px_35px_rgba(0,229,133,0.35)] transition-transform hover:scale-105"
       >
-        {/* Hover Aura */}
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 rounded-full bg-[#00FF87] opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-30"
-        />
-
-        {/* Inner Ring */}
-        <span
-          aria-hidden="true"
-          className="absolute inset-[3px] rounded-full border border-[#020706]/10"
-        />
-
         <AnimatePresence mode="wait" initial={false}>
-          {isOpen ? (
-            <motion.svg
+          {isChatbotOpen ? (
+            <motion.span
               key="close"
               initial={{ rotate: -45, opacity: 0 }}
               animate={{ rotate: 0, opacity: 1 }}
               exit={{ rotate: 45, opacity: 0 }}
               transition={{ duration: 0.18 }}
-              xmlns="http://www.w3.org/2000/svg"
-              className="relative z-10 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18 18 6M6 6l12 12"
-              />
-            </motion.svg>
+              <X size={22} />
+            </motion.span>
           ) : (
-            <motion.svg
-              key="chat"
+            <motion.span
+              key="robot"
               initial={{ rotate: 15, opacity: 0 }}
               animate={{ rotate: 0, opacity: 1 }}
               exit={{ rotate: -15, opacity: 0 }}
               transition={{ duration: 0.18 }}
-              xmlns="http://www.w3.org/2000/svg"
-              className="relative z-10 h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="1.8"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-5 5v-5Z"
-              />
-            </motion.svg>
+              <RobotFace size={30} body="#04160C" accent="#00E585" thinking={isLoading} />
+            </motion.span>
           )}
         </AnimatePresence>
 
-        {/* Unread Indicator */}
-        {!isOpen && (
+        {!isChatbotOpen && (
           <span className="absolute right-0 top-0 flex h-3.5 w-3.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-40" />
-            <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-[#00FF87] bg-[#020706]" />
+            <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-[#00E585] bg-[#050A08]" />
           </span>
         )}
       </motion.button>
-    </motion.div>
+    </div>
   );
 }

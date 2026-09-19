@@ -1,484 +1,371 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, useInView } from 'framer-motion';
+import { ChevronDown, ArrowRight, Satellite } from 'lucide-react';
 
+/* ============================================================
+   VyomAcre — About page (landing-style, zero static boxes)
+   - Particle field canvas (cursor-reactive)
+   - Interactive team rows: hover/tap to expand work details
+   - Mission list, tech marquee — no cards anywhere
+   ============================================================ */
+
+/* ---------- particle field (cursor-reactive) ---------- */
+function ParticleField() {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let raf;
+    let w, h;
+    const mouse = { x: -9999, y: -9999 };
+
+    const resize = () => {
+      const parent = canvas.parentElement;
+      w = canvas.width = parent.offsetWidth;
+      h = canvas.height = parent.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const N = Math.min(80, Math.floor((w * h) / 24000));
+    const nodes = Array.from({ length: N }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.7,
+    }));
+
+    const onMove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    };
+    const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseout', onLeave);
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+
+      for (const n of nodes) {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > w) n.vx *= -1;
+        if (n.y < 0 || n.y > h) n.vy *= -1;
+        const dx = n.x - mouse.x;
+        const dy = n.y - mouse.y;
+        const md = Math.sqrt(dx * dx + dy * dy);
+        if (md < 140) { n.x += (dx / md) * 0.5; n.y += (dy / md) * 0.5; }
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 130) {
+            ctx.strokeStyle = 'rgba(0,229,133,' + (0.09 * (1 - d / 130)).toFixed(3) + ')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      for (const n of nodes) {
+        const dx = n.x - mouse.x, dy = n.y - mouse.y;
+        const md = Math.sqrt(dx * dx + dy * dy);
+        const near = md < 170;
+        ctx.fillStyle = near ? 'rgba(0,229,133,0.85)' : 'rgba(160,180,168,0.4)';
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r + (near ? 0.7 : 0), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseout', onLeave);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" />;
+}
+
+/* ---------- reveal on scroll ---------- */
+function Reveal({ children, delay = 0, className = '' }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 26 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.6, delay, ease: 'easeOut' }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ---------- animated counter ---------- */
+function Counter({ to, suffix = '' }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
+  const [val, setVal] = useState(0);
+
+  useEffect(() => {
+    if (!inView) return;
+    let start;
+    const step = (t) => {
+      if (!start) start = t;
+      const p = Math.min((t - start) / 1200, 1);
+      setVal(Math.round(to * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [inView, to]);
+
+  return <span ref={ref} style={{ fontVariantNumeric: 'tabular-nums' }}>{val}{suffix}</span>;
+}
+
+/* ---------- data ---------- */
 const values = [
   {
-    number: '01',
     eyebrow: 'OUR MISSION',
     title: 'Turn empty rooftops into opportunity.',
-    description:
-      "Our mission is to turn India's 2.4 billion sq ft of empty urban rooftops into a revenue-generating asset class.",
-    icon: 'mission',
+    description: 'India has 637 GW of rooftop solar potential sitting idle over people\u2019s heads. We are building the marketplace that turns that idle concrete into a revenue-generating asset class.',
   },
   {
-    number: '02',
-    eyebrow: 'AI-POWERED',
-    title: 'Intelligence behind every space.',
-    description:
-      'Google Earth Engine satellite verification and Gemini AI combine to make property discovery faster, smarter and easier to understand.',
-    icon: 'ai',
+    eyebrow: 'SATELLITE-FIRST',
+    title: 'Verification from orbit, not from a site visit.',
+    description: 'Google Earth Engine measures roof area, shading and orientation the moment a roof is listed — replacing the weeks-long manual survey that kills every solar deal today.',
   },
   {
-    number: '03',
-    eyebrow: 'B2B MARKETPLACE',
-    title: 'Built for trusted transactions.',
-    description:
-      'Verified owners, authenticated businesses, transparent pricing and digital agreements create a more dependable B2B rooftop marketplace.',
-    icon: 'market',
+    eyebrow: 'TRUSTED MARKETPLACE',
+    title: 'Built for transactions you can trust.',
+    description: 'Verified owners, authenticated businesses, token-gated lease requests and transparent status tracking — a marketplace both sides can trust without meeting.',
   },
-];
-
-const techStack = [
-  'React 18',
-  'FastAPI',
-  'Google Earth Engine',
-  'Gemini AI',
-  'PostgreSQL',
-  'Leaflet Maps',
 ];
 
 const team = [
   {
-    name: 'Divyansh',
-    role: 'TPM + Backend',
-    initials: 'D',
-    code: 'DEV / 01',
+    id: '01',
+    name: 'Divyansh Kumar',
+    role: 'Team Lead \u00b7 Backend \u00b7 Frontend',
+    tags: ['FastAPI', 'PostgreSQL', 'Earth Engine', 'Gemini AI', 'JWT'],
+    detail: 'Leads the project end to end. Built the entire backend \u2014 auth, PostgreSQL database and the lease marketplace \u2014 and shipped both engines: the Google Earth Engine satellite verification pipeline and the Gemini AI assistant. Manages the GitHub repo, branch workflow and PR reviews, and is building the frontend experience too \u2014 the landing page, glass navbar, fire footer and this About page.',
   },
   {
+    id: '02',
     name: 'Ritesh',
-    role: 'Backend',
-    initials: 'R',
-    code: 'DEV / 02',
+    role: 'Geospatial \u00b7 Backend',
+    tags: ['Leaflet', 'React', 'FastAPI'],
+    detail: 'Owns the map \u2014 the heart of the marketplace. Built the live properties dashboard with Leaflet, marker rendering and clustering, city / roof-type / area filters, scanned-zone overlays and live location detection.',
   },
   {
+    id: '03',
     name: 'Balram',
-    role: 'UI/UX',
-    initials: 'B',
-    code: 'DEV / 03',
+    role: 'Frontend Core',
+    tags: ['React', 'Axios', 'Tailwind'],
+    detail: 'Rewired the frontend to the real backend. Rebuilt the api.js service layer endpoint-by-endpoint against Swagger, fixed auth token storage and auto-injection, added role-based navigation and ProtectedRoute gating, and the Navbar auth states.',
   },
   {
+    id: '04',
     name: 'Harsh',
-    role: 'Frontend',
-    initials: 'H',
-    code: 'DEV / 04',
+    role: 'Frontend Architecture',
+    tags: ['React', 'Router', 'Tailwind'],
+    detail: 'Owns App.jsx \u2014 the spine of the frontend. All 14 routes and the 404, the owner roof-submission form, dashboard mounting, the signup flow and the About/Help wiring you are reading right now.',
+  },
+  {
+    id: '05',
+    name: 'Khushi',
+    role: 'Data \u00b7 Admin',
+    tags: ['PostgreSQL', 'Admin', 'Testing'],
+    detail: 'Makes the marketplace feel alive. Seeds the live map with real verified rooftops across cities, builds the admin panel for roof verification and user roles, and runs end-to-end lease-flow testing.',
   },
 ];
 
-const sectionReveal = {
-  hidden: {
-    opacity: 0,
-    y: 45,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.8,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-const staggerContainer = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-function AmbientGlow({ className = '' }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={
-        'pointer-events-none absolute rounded-full bg-[#00FF87]/[0.055] blur-[130px] ' +
-        className
-      }
-    />
-  );
-}
-
-function SectionLabel({ children }) {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 backdrop-blur-xl">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_9px_rgba(0,255,135,0.75)]" />
-      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-        {children}
-      </span>
-    </div>
-  );
-}
-
-function FeatureIcon({ type }) {
-  if (type === 'mission') {
-    return (
-      <svg
-        className="h-5 w-5 text-[#00FF87]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <path d="M12 3v18M3 12h18" strokeLinecap="round" />
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M8.5 15.5 12 12l3.5-3.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-
-  if (type === 'ai') {
-    return (
-      <svg
-        className="h-5 w-5 text-[#00FF87]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      >
-        <rect x="4" y="4" width="16" height="16" rx="4" />
-        <path
-          d="M8.5 12h7M12 8.5v7"
-          strokeLinecap="round"
-        />
-        <path d="M9 4V2.5M15 4V2.5M9 21.5V20M15 21.5V20" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg
-      className="h-5 w-5 text-[#00FF87]"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-    >
-      <path d="M4 7h16M4 12h16M4 17h10" strokeLinecap="round" />
-      <circle cx="18" cy="17" r="2.5" />
-    </svg>
-  );
-}
+const techStack = ['React', 'FastAPI', 'PostgreSQL', 'Google Earth Engine', 'Gemini AI', 'Leaflet Maps', 'Tailwind CSS', 'Render', 'Vercel'];
 
 export default function About() {
+  const [hover, setHover] = useState(null);
+
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-[#020706] font-sans text-white">
-      {/* =========================================================
-          HERO
-      ========================================================= */}
-      <section className="relative overflow-hidden pt-32 sm:pt-36">
-        <AmbientGlow className="left-1/2 top-0 h-[500px] w-[760px] -translate-x-1/2 -translate-y-1/2" />
-        <AmbientGlow className="right-[-8%] top-[36%] h-[300px] w-[300px]" />
+    <div className="relative overflow-x-clip bg-[#050A08] text-[#E7EFE9]" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <style>{`
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+.vy-head { font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; letter-spacing: -0.01em; }
+@keyframes vytech { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+`}</style>
 
-        <div className="relative z-10 mx-auto max-w-7xl px-5 pb-24 sm:px-6 md:pb-32 lg:px-8">
-          <motion.div
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-            className="max-w-5xl"
-          >
-            <SectionLabel>About VyomAcre</SectionLabel>
+      {/* ============ HERO ============ */}
+      <section className="relative overflow-hidden px-6 pb-24 pt-28 sm:px-10 lg:px-16">
+        <ParticleField />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#050A08]" />
 
-            <h1 className="mt-7 max-w-4xl text-[clamp(3.4rem,8vw,7.4rem)] font-medium leading-[0.92] tracking-[-0.065em]">
-              We turn{' '}
-              <span className="text-[#00FF87] [text-shadow:0_0_45px_rgba(0,255,135,0.12)]">
-                overlooked space
-              </span>{' '}
-              into opportunity.
-            </h1>
+        <div className="relative mx-auto max-w-6xl">
+          <div className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-[#1C2A22] bg-[#0A1410]/80 px-4 py-1.5 backdrop-blur-sm">
+            <Satellite size={13} className="text-[#00E585]" />
+            <span className="text-xs font-medium text-[#93A096]">Team Devdoots · Build with AI · Code for Communities · 2026</span>
+          </div>
 
-            <p className="mt-8 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
-              VyomAcre is an AI-powered space discovery platform designed to
-              help rooftop owners unlock value and help businesses discover
-              the right urban space with greater confidence.
-            </p>
-          </motion.div>
+          <h1 className="vy-head max-w-4xl text-5xl font-bold leading-[1.05] tracking-tight text-[#F4F8F5] sm:text-6xl lg:text-7xl">
+            We put rooftops<br />
+            <span className="text-[#00E585]">on the map.</span>
+          </h1>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{
-              duration: 0.8,
-              delay: 0.15,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="mt-20 flex items-center gap-4"
-          >
-            <span className="h-px w-16 bg-[#00FF87]/30" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-slate-600">
-              SPACE / AI / MARKETPLACE
-            </span>
-          </motion.div>
-        </div>
-      </section>
+          <p className="mt-7 max-w-xl text-lg leading-relaxed text-[#A6B1A8]">
+            Team Devdoots is five builders turning India&rsquo;s idle rooftops into
+            a working satellite-verified marketplace — designed, built and
+            deployed end to end.
+          </p>
 
-      {/* =========================================================
-          MISSION / VALUES
-      ========================================================= */}
-      <section className="relative border-y border-white/10">
-        <AmbientGlow className="left-[22%] top-1/2 h-[280px] w-[280px] -translate-y-1/2" />
-
-        <div className="relative z-10 mx-auto max-w-7xl px-5 py-24 sm:px-6 md:py-28 lg:px-8">
-          <motion.div
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-            className="max-w-2xl"
-          >
-            <SectionLabel>What We Believe</SectionLabel>
-
-            <h2 className="mt-6 text-4xl font-medium tracking-[-0.05em] text-white sm:text-5xl">
-              Infrastructure for a{' '}
-              <span className="text-[#00FF87]">more discoverable city.</span>
-            </h2>
-          </motion.div>
-
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            className="mt-14 grid gap-4 lg:grid-cols-3"
-          >
-            {values.map((value) => (
-              <motion.article
-                key={value.number}
-                variants={sectionReveal}
-                whileHover={{
-                  y: -5,
-                  transition: {
-                    type: 'spring',
-                    stiffness: 300,
-                    damping: 24,
-                  },
-                }}
-                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] p-7 backdrop-blur-xl transition-all duration-300 hover:border-[#00FF87]/20 hover:bg-white/[0.035] hover:shadow-[0_0_35px_rgba(0,255,135,0.045)] sm:p-8"
-              >
-                <div
-                  aria-hidden="true"
-                  className="absolute right-0 top-0 h-32 w-32 rounded-full bg-[#00FF87]/[0.035] blur-[60px] transition-opacity duration-300 group-hover:opacity-100"
-                />
-
-                <div className="relative">
-                  <div className="flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#00FF87]/15 bg-[#00FF87]/[0.045]">
-                      <FeatureIcon type={value.icon} />
-                    </div>
-
-                    <span className="font-mono text-[10px] tracking-[0.16em] text-slate-600">
-                      {value.number}
-                    </span>
-                  </div>
-
-                  <p className="mt-10 text-[9px] font-semibold uppercase tracking-[0.2em] text-slate-600">
-                    {value.eyebrow}
-                  </p>
-
-                  <h3 className="mt-3 max-w-sm text-2xl font-medium leading-tight tracking-[-0.04em] text-white">
-                    {value.title}
-                  </h3>
-
-                  <p className="mt-4 text-sm leading-6 text-slate-400">
-                    {value.description}
-                  </p>
-
-                  <div className="mt-9 flex items-center gap-2">
-                    <span className="h-px w-8 bg-[#00FF87]/40 transition-all duration-300 group-hover:w-12" />
-                    <span className="text-[9px] uppercase tracking-[0.16em] text-slate-600">
-                      VYOMACRE
-                    </span>
-                  </div>
+          <div className="mt-16 grid grid-cols-2 gap-x-6 gap-y-10 border-t border-[#1A2620] pt-10 md:grid-cols-4">
+            {[
+              { v: 5, s: '', label: 'Builders on the roster' },
+              { v: 14, s: '', label: 'Frontend routes wired' },
+              { v: 25, s: '+', label: 'Backend API endpoints' },
+              { v: 637, s: ' GW', label: 'Market we are unlocking' },
+            ].map((st) => (
+              <Reveal key={st.label}>
+                <div className="vy-head text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+                  <Counter to={st.v} suffix={st.s} />
                 </div>
-              </motion.article>
+                <div className="mt-2 max-w-[210px] text-sm leading-relaxed text-[#7E8B82]">{st.label}</div>
+              </Reveal>
             ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          TECH STACK
-      ========================================================= */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-5 py-24 sm:px-6 md:py-28 lg:px-8">
-          <div className="grid gap-14 lg:grid-cols-[0.7fr_1.3fr] lg:items-center">
-            <motion.div
-              variants={sectionReveal}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-100px' }}
-            >
-              <SectionLabel>Technology</SectionLabel>
-
-              <h2 className="mt-6 text-4xl font-medium tracking-[-0.05em] sm:text-5xl">
-                Tech Stack
-              </h2>
-
-              <p className="mt-5 max-w-md text-sm leading-7 text-slate-400">
-                A modern foundation combining frontend velocity, AI
-                intelligence, geospatial verification and reliable data
-                infrastructure.
-              </p>
-            </motion.div>
-
-            <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-80px' }}
-              className="flex flex-wrap gap-3"
-            >
-              {techStack.map((technology, index) => (
-                <motion.div
-                  key={technology}
-                  variants={sectionReveal}
-                  whileHover={{
-                    y: -3,
-                    scale: 1.02,
-                    transition: {
-                      type: 'spring',
-                      stiffness: 350,
-                      damping: 22,
-                    },
-                  }}
-                  className="group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-4 py-3 backdrop-blur-xl transition-all duration-300 hover:border-[#00FF87]/20 hover:bg-[#00FF87]/[0.035] hover:shadow-[0_0_20px_rgba(0,255,135,0.06)]"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87]/60 shadow-[0_0_7px_rgba(0,255,135,0.4)] transition-all duration-300 group-hover:bg-[#00FF87] group-hover:shadow-[0_0_9px_rgba(0,255,135,0.75)]" />
-
-                  <span className="text-xs font-medium text-slate-300 transition-colors duration-300 group-hover:text-white">
-                    {technology}
-                  </span>
-
-                  <span className="font-mono text-[8px] text-slate-700">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                </motion.div>
-              ))}
-            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* =========================================================
-          TEAM DEVDOOTS
-      ========================================================= */}
-      <section className="relative border-t border-white/10">
-        <AmbientGlow className="right-[-8%] top-[15%] h-[360px] w-[360px]" />
-
-        <div className="relative z-10 mx-auto max-w-7xl px-5 py-24 sm:px-6 md:py-32 lg:px-8">
-          <motion.div
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-          >
-            <SectionLabel>Built By</SectionLabel>
-
-            <div className="mt-6 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h2 className="text-4xl font-medium tracking-[-0.05em] sm:text-5xl">
-                  Team <span className="text-[#00FF87]">Devdoots</span>
-                </h2>
-
-                <p className="mt-4 max-w-xl text-sm leading-7 text-slate-400">
-                  A focused team building the infrastructure behind VyomAcre's
-                  next generation of urban space discovery.
-                </p>
-              </div>
-
-              <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-slate-600">
-                TEAM / DEVDOOTS / 2026
-              </span>
-            </div>
-          </motion.div>
-
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-80px' }}
-            className="mt-14 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            {team.map((member) => (
-              <motion.article
-                key={member.name}
-                variants={sectionReveal}
-                whileHover={{
-                  y: -4,
-                  transition: {
-                    type: 'spring',
-                    stiffness: 320,
-                    damping: 24,
-                  },
-                }}
-                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.025] p-5 backdrop-blur-xl transition-all duration-300 hover:border-[#00FF87]/20 hover:bg-white/[0.035]"
-              >
-                <div
-                  aria-hidden="true"
-                  className="absolute right-[-20px] top-[-20px] h-28 w-28 rounded-full bg-[#00FF87]/[0.035] blur-[45px] opacity-70 transition-opacity duration-300 group-hover:opacity-100"
-                />
-
-                <div className="relative flex items-start justify-between">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#00FF87]/25 bg-[#00FF87]/[0.045] shadow-[0_0_22px_rgba(0,255,135,0.07)]">
-                    <span className="text-lg font-semibold tracking-[-0.03em] text-[#00FF87]">
-                      {member.initials}
-                    </span>
-                  </div>
-
-                  <span className="font-mono text-[9px] tracking-[0.16em] text-slate-600">
-                    {member.code}
-                  </span>
-                </div>
-
-                <div className="relative mt-12">
-                  <h3 className="text-lg font-medium tracking-[-0.025em] text-white">
-                    {member.name}
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    {member.role}
-                  </p>
-                </div>
-
-                <div className="relative mt-8 flex items-center gap-2">
-                  <span className="h-px w-6 bg-[#00FF87]/35 transition-all duration-300 group-hover:w-10" />
-                  <span className="text-[8px] uppercase tracking-[0.18em] text-slate-700">
-                    ACTIVE CONTRIBUTOR
-                  </span>
-                </div>
-              </motion.article>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          CLOSING STATEMENT
-      ========================================================= */}
-      <section className="relative overflow-hidden border-t border-white/10">
-        <AmbientGlow className="left-1/2 top-1/2 h-[420px] w-[680px] -translate-x-1/2 -translate-y-1/2" />
-
-        <div className="relative z-10 mx-auto max-w-4xl px-5 py-24 text-center sm:px-6 md:py-32">
-          <motion.div
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-100px' }}
-          >
-            <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-slate-600">
-              THE VYOMACRE PRINCIPLE
-            </span>
-
-            <h2 className="mt-6 text-3xl font-medium leading-tight tracking-[-0.05em] text-white sm:text-4xl md:text-5xl">
-              Better discovery creates{' '}
-              <span className="text-[#00FF87]">better possibilities.</span>
+      {/* ============ MISSION (no boxes) ============ */}
+      <section className="border-t border-[#121D17] bg-[#071009] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">What we believe</div>
+            <h2 className="vy-head mt-4 max-w-2xl text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              Three ideas, zero shortcuts
             </h2>
-          </motion.div>
+          </Reveal>
+
+          <div className="mt-14">
+            {values.map((v, i) => (
+              <Reveal key={v.eyebrow} delay={i * 0.06}>
+                <div className="flex flex-col gap-4 border-t border-[#121D17] py-10 last:border-b sm:flex-row sm:gap-12">
+                  <span className="vy-head text-5xl font-bold leading-none text-[#1C2A22] sm:w-24 sm:flex-none sm:text-6xl">0{i + 1}</span>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">{v.eyebrow}</div>
+                    <div className="vy-head mt-2.5 text-2xl font-bold tracking-tight text-[#EDF3EF] sm:text-3xl">{v.title}</div>
+                    <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-[#8A968E]">{v.description}</p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
-    </main>
+
+      {/* ============ TEAM (interactive rows) ============ */}
+      <section className="border-t border-[#121D17] px-6 py-24 sm:px-10 lg:px-16">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[#00E585]">The humans</div>
+            <h2 className="vy-head mt-4 max-w-2xl text-4xl font-bold tracking-tight text-[#F4F8F5] sm:text-5xl">
+              Five builders, one marketplace
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-[#93A096]">
+              Hover — or tap — any name to see what they actually built.
+            </p>
+          </Reveal>
+
+          <Reveal delay={0.1}>
+            <div className="mt-12 border-b border-[#121D17]">
+              {team.map((m, i) => {
+                const open = hover === i;
+                return (
+                  <div
+                    key={m.id}
+                    onMouseEnter={() => setHover(i)}
+                    onMouseLeave={() => setHover(null)}
+                    onClick={() => setHover(open ? null : i)}
+                    className={'cursor-pointer border-t border-[#121D17] transition-colors duration-300 ' + (open ? 'bg-[#08120C]/70' : 'hover:bg-[#08120C]/40')}
+                  >
+                    <div className="flex items-center gap-5 px-3 py-7 sm:gap-8 sm:px-6">
+                      <span className="vy-head w-8 flex-none text-sm font-semibold tracking-[0.1em] text-[#00E585]">{m.id}</span>
+                      <span className={'vy-head flex-1 text-3xl font-bold tracking-tight transition-colors duration-300 sm:text-5xl ' + (open ? 'text-[#00E585]' : 'text-[#F4F8F5]')}>
+                        {m.name}
+                      </span>
+                      <span className="mr-2 hidden text-sm font-medium text-[#7E8B82] sm:block">{m.role}</span>
+                      <ChevronDown
+                        size={20}
+                        className={'flex-none text-[#00E585] transition-transform duration-300 ' + (open ? 'rotate-180' : '')}
+                      />
+                    </div>
+
+                    <div className={'grid transition-all duration-500 ease-out ' + (open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0')}>
+                      <div className="overflow-hidden">
+                        <div className="px-3 pb-7 sm:px-6 sm:pl-[7.5rem]">
+                          <span className="mb-3 block text-xs font-semibold uppercase tracking-[0.18em] text-[#00E585] sm:hidden">{m.role}</span>
+                          <p className="max-w-2xl text-[15px] leading-relaxed text-[#8A968E]">{m.detail}</p>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {m.tags.map((t) => (
+                              <span key={t} className="rounded-full border border-[#24352B] px-3 py-1 text-xs font-medium text-[#93A096]">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ============ TECH MARQUEE ============ */}
+      <section className="border-t border-[#121D17] bg-[#071009] py-16">
+        <p className="px-6 text-center text-xs font-semibold uppercase tracking-[0.22em] text-[#5E6B62]">Built with</p>
+        <div className="mt-8 overflow-hidden [mask-image:linear-gradient(90deg,transparent,black_12%,black_88%,transparent)]">
+          <div className="flex w-max gap-12" style={{ animation: 'vytech 30s linear infinite' }}>
+            {[...techStack, ...techStack].map((t, i) => (
+              <span key={i} className="flex items-center gap-12 whitespace-nowrap text-lg font-medium text-[#4E5B52]">
+                {t}
+                <span className="h-1 w-1 rounded-full bg-[#00E585]/40" />
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============ CTA ============ */}
+      <section className="relative overflow-hidden border-t border-[#121D17] px-6 py-24 text-center sm:px-10">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[380px] w-[680px] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#00E585]/[0.04] blur-3xl" />
+        <div className="relative mx-auto max-w-3xl">
+          <h2 className="vy-head text-4xl font-bold leading-tight tracking-tight text-[#F4F8F5] sm:text-5xl">
+            Enough about us. <span className="text-[#00E585]">See what we built.</span>
+          </h2>
+          <div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Link to="/properties" className="inline-flex items-center gap-2 rounded-xl bg-[#00E585] px-8 py-4 text-base font-semibold text-[#04160C] transition hover:scale-[1.02]">
+              Explore the live map <ArrowRight size={17} />
+            </Link>
+            <Link to="/signup" className="rounded-xl border border-[#24352B] px-8 py-4 text-base font-medium text-[#D7E2DA] transition-colors hover:border-[#00E585]/50">
+              List your roof — free
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

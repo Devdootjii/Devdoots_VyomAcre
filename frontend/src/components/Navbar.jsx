@@ -103,9 +103,18 @@ const Navbar = () => {
       path: '/seeker-dashboard',
     });
   }
+  if (isLoggedIn && user?.role === 'admin') {
+    navLinks.push({ name: 'Admin Panel', path: '/admin' });
+  }
 
   return (
     <nav className="sticky top-0 z-50">
+      <style>{`
+@keyframes vyorbit { to { transform: rotate(360deg); } }
+@keyframes vyorbitrev { to { transform: rotate(-360deg); } }
+.vy-orbit { animation: vyorbit 7s linear infinite; }
+.vy-orbit-rev { animation: vyorbitrev 10.5s linear infinite; }
+`}</style>
       {/* Wrapper — gains side padding when scrolled so the pill floats */}
       <div className={'transition-all duration-500 ' + (scrolled ? 'px-4 pt-4 sm:px-5' : 'px-0 pt-0')}>
         {/* The bar itself — solid theme color at top, liquid glass pill when scrolled */}
@@ -120,11 +129,32 @@ const Navbar = () => {
           <div className="flex items-center justify-between px-5 py-4 sm:px-7 sm:py-5">
             <Link
               to="/"
-              className="text-2xl font-bold tracking-tight text-[#F4F8F5]"
-              style={{ fontFamily: "'Space Grotesk', Inter, system-ui, sans-serif" }}
+              className="group flex items-center gap-2.5"
               onClick={() => setIsOpen(false)}
             >
-              Vyom<span className="text-[#00E585]">Acre</span>
+              {/* Logo mark — roof (green dot) with satellites orbiting it */}
+              <span className="relative flex h-9 w-9 flex-none items-center justify-center">
+                {/* the roof */}
+                <span className="h-3 w-3 rounded-full bg-[#00E585] shadow-[0_0_10px_rgba(0,229,133,0.7)]" />
+                {/* orbit ring 1 + satellite */}
+                <span className="absolute inset-0 rounded-full border border-[#00E585]/35" />
+                <span className="vy-orbit absolute inset-0">
+                  <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F4F8F5] shadow-[0_0_6px_rgba(244,248,245,0.9)]" />
+                </span>
+                {/* orbit ring 2 (tilted) + satellite, opposite direction */}
+                <span className="absolute inset-0" style={{ transform: 'rotate(60deg)' }}>
+                  <span className="absolute inset-0 rounded-full border border-[#00E585]/20" />
+                  <span className="vy-orbit-rev absolute inset-0">
+                    <span className="absolute left-1/2 top-0 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#00E585] shadow-[0_0_6px_rgba(0,229,133,0.9)]" />
+                  </span>
+                </span>
+              </span>
+              <span
+                className="text-2xl font-bold tracking-tight text-[#F4F8F5] transition-transform duration-300 group-hover:scale-[1.02]"
+                style={{ fontFamily: "'Space Grotesk', Inter, system-ui, sans-serif" }}
+              >
+                Vyom<span className="text-[#00E585]">Acre</span>
+              </span>
             </Link>
 
             {/* Desktop */}

@@ -1,8 +1,159 @@
-import React, { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, Satellite, Building2, Map, Sparkles, ArrowUpRight } from 'lucide-react';
+import { useUI } from '../context/UIContext';
 
-const faqs = [
+/* ============================================================
+   VyomAcre — Help Center (About-style, zero static boxes)
+   - Cursor-reactive particle field hero
+   - Quick action tiles (hover lift + glow)
+   - Interactive FAQ rows (click to expand)
+   - AI CTA with live status
+   ============================================================ */
+
+/* ---------- particle field (cursor-reactive) ---------- */
+function ParticleField() {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    let raf;
+    let w, h;
+    const mouse = { x: -9999, y: -9999 };
+
+    const resize = () => {
+      const parent = canvas.parentElement;
+      w = canvas.width = parent.offsetWidth;
+      h = canvas.height = parent.offsetHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const N = Math.min(80, Math.floor((w * h) / 24000));
+    const nodes = Array.from({ length: N }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.7,
+    }));
+
+    const onMove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    };
+    const onLeave = () => { mouse.x = -9999; mouse.y = -9999; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseout', onLeave);
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+
+      for (const n of nodes) {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > w) n.vx *= -1;
+        if (n.y < 0 || n.y > h) n.vy *= -1;
+        const dx = n.x - mouse.x;
+        const dy = n.y - mouse.y;
+        const md = Math.sqrt(dx * dx + dy * dy);
+        if (md < 140) { n.x += (dx / md) * 0.5; n.y += (dy / md) * 0.5; }
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 130) {
+            ctx.strokeStyle = 'rgba(0,229,133,' + (0.09 * (1 - d / 130)).toFixed(3) + ')';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      for (const n of nodes) {
+        const dx = n.x - mouse.x, dy = n.y - mouse.y;
+        const md = Math.sqrt(dx * dx + dy * dy);
+        const near = md < 140;
+        ctx.fillStyle = near ? 'rgba(0,229,133,' + (0.75 * (1 - md / 140)).toFixed(3) + ')' : 'rgba(0,229,133,0.35)';
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseout', onLeave);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" />;
+}
+
+/* ---------- reveal on scroll ---------- */
+function Reveal({ children, delay = 0, className = '' }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 26 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-60px' }}
+      transition={{ duration: 0.6, delay, ease: 'easeOut' }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/* ---------- ambient orb ---------- */
+function Orb({ className = '', delay = 0 }) {
+  return (
+    <motion.div
+      aria-hidden="true"
+      animate={{ y: [0, -22, 0], opacity: [0.5, 0.9, 0.5] }}
+      transition={{ duration: 7 + delay, repeat: Infinity, ease: 'easeInOut', delay }}
+      className={'pointer-events-none absolute rounded-full bg-[#00E585]/[0.05] blur-[110px] ' + className}
+    />
+  );
+}
+
+/* ---------- data ---------- */
+const QUICK_ACTIONS = [
+  {
+    icon: Sparkles,
+    title: 'Ask the AI',
+    desc: 'Instant answers about listings, leasing and verification — any time, in Hindi or English.',
+    action: 'chat',
+  },
+  {
+    icon: Building2,
+    title: 'List your roof',
+    desc: 'Add your rooftop in minutes and get it satellite-verified for businesses to discover.',
+    action: 'link',
+    to: '/owner/new-roof',
+  },
+  {
+    icon: Map,
+    title: 'Explore rooftops',
+    desc: 'Browse verified rooftop spaces on the live map with AI-assisted insights.',
+    action: 'link',
+    to: '/properties',
+  },
+];
+
+const FAQS = [
   {
     id: 1,
     question: 'How does AI satellite verification work?',
@@ -27,356 +178,293 @@ const faqs = [
     answer:
       'VyomAcre is designed around controlled access and responsible handling of account and property information. Sensitive information should only be shared through authenticated platform workflows, while access to relevant data is limited according to the user and marketplace context.',
   },
+  {
+    id: 5,
+    question: 'How do I list my rooftop?',
+    answer:
+      'Create an owner account, open List Your Roof, and submit your property details — location, approximate rooftop area and access notes. Our satellite engine then cross-checks the location, and once verified, your rooftop becomes discoverable to businesses looking for space.',
+  },
+  {
+    id: 6,
+    question: 'What does VyomAcre cost?',
+    answer:
+      'Browsing, listing and AI assistance on VyomAcre are free for property owners and seekers during this program. Commercial terms apply only to the final lease agreement negotiated between the owner and the leasing business.',
+  },
 ];
 
-const faqContainerVariants = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.09,
-    },
-  },
-};
-
-const faqItemVariants = {
-  hidden: {
-    opacity: 0,
-    y: 28,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.65,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-function AmbientGlow({ className = '' }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={
-        'pointer-events-none absolute rounded-full bg-[#00FF87]/[0.055] blur-[130px] ' +
-        className
-      }
-    />
-  );
-}
-
-function SectionLabel({ children }) {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5 backdrop-blur-xl">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#00FF87] shadow-[0_0_9px_rgba(0,255,135,0.75)]" />
-      <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-        {children}
-      </span>
-    </div>
-  );
-}
-
-function AccordionIcon({ isOpen }) {
-  return (
-    <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.025] transition-colors duration-300 group-hover:border-[#00FF87]/20">
-      <motion.span
-        animate={{
-          rotate: isOpen ? 45 : 0,
-        }}
-        transition={{
-          duration: 0.25,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-        className="relative flex h-3.5 w-3.5 items-center justify-center"
-      >
-        <span className="absolute h-px w-3 bg-current" />
-        <span className="absolute h-px w-3 rotate-90 bg-current" />
-      </motion.span>
-    </span>
-  );
-}
-
-function FAQItem({ faq, isOpen, onToggle }) {
-  const articleClass =
-    'group overflow-hidden rounded-2xl border backdrop-blur-xl transition-all duration-300 ' +
-    (isOpen
-      ? 'border-[#00FF87]/30 bg-[#00FF87]/[0.035] shadow-[0_0_30px_rgba(0,255,135,0.045)]'
-      : 'border-white/10 bg-white/[0.025] hover:border-white/15 hover:bg-white/[0.035]');
-
-  const idClass =
-    'hidden font-mono text-[10px] tracking-[0.15em] sm:inline ' +
-    (isOpen ? 'text-[#00FF87]/70' : 'text-slate-700');
-
-  const questionClass =
-    'text-sm font-medium tracking-[-0.015em] transition-colors duration-300 sm:text-[15px] ' +
-    (isOpen ? 'text-white' : 'text-slate-300 group-hover:text-white');
-
-  const iconWrapperClass =
-    'transition-colors duration-300 ' +
-    (isOpen ? 'text-[#00FF87]' : 'text-slate-500');
-
-  return (
-    <motion.article
-      variants={faqItemVariants}
-      className={articleClass}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={isOpen}
-        aria-controls={'faq-answer-' + faq.id}
-        className="flex w-full items-center justify-between gap-5 px-5 py-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00FF87]/35 sm:px-6 sm:py-6"
-      >
-        <span className="flex min-w-0 items-center gap-4">
-          <span className={idClass}>
-            {String(faq.id).padStart(2, '0')}
-          </span>
-
-          <span className={questionClass}>
-            {faq.question}
-          </span>
-        </span>
-
-        <span className={iconWrapperClass}>
-          <AccordionIcon isOpen={isOpen} />
-        </span>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            id={'faq-answer-' + faq.id}
-            key="answer"
-            initial={{
-              height: 0,
-              opacity: 0,
-            }}
-            animate={{
-              height: 'auto',
-              opacity: 1,
-            }}
-            exit={{
-              height: 0,
-              opacity: 0,
-            }}
-            transition={{
-              height: {
-                duration: 0.34,
-                ease: [0.22, 1, 0.36, 1],
-              },
-              opacity: {
-                duration: 0.2,
-                ease: 'easeOut',
-              },
-            }}
-            className="overflow-hidden"
-          >
-            <div className="border-t border-white/10 px-5 pb-6 pt-4 sm:px-6 sm:pb-7">
-              <div className="pl-0 sm:pl-[2.15rem]">
-                <p className="max-w-2xl text-sm leading-7 text-slate-400">
-                  {faq.answer}
-                </p>
-
-                <div className="mt-5 flex items-center gap-2">
-                  <span className="h-px w-8 bg-[#00FF87]/35" />
-                  <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-slate-600">
-                    VYOMACRE SUPPORT
-                  </span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.article>
-  );
-}
-
+/* ---------- component ---------- */
 export default function Help() {
-  const [openFaq, setOpenFaq] = useState(faqs[0].id);
+  const { openChatbot } = useUI();
+  const [openFaq, setOpenFaq] = useState(1);
 
-  const handleToggle = (id) => {
-    setOpenFaq((current) => (current === id ? null : id));
+  const handleQuick = (a) => {
+    if (a.action === 'chat') openChatbot();
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-[#020706] font-sans text-white">
+    <main
+      className="relative overflow-x-clip bg-[#050A08] text-[#E7EFE9]"
+      style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+    >
+      <style>{`
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+.vy-head { font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; letter-spacing: -0.01em; }
+`}</style>
+
       {/* =========================================================
-          HERO
+          HERO — particle field
       ========================================================= */}
-      <section className="relative overflow-hidden pt-32 sm:pt-36">
-        <AmbientGlow className="left-1/2 top-0 h-[500px] w-[760px] -translate-x-1/2 -translate-y-1/2" />
-        <AmbientGlow className="left-[-12%] top-[48%] h-[260px] w-[260px]" />
+      <section className="relative flex min-h-[88vh] items-center justify-center overflow-hidden">
+        <ParticleField />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-0 h-px w-[560px] -translate-x-1/2 bg-gradient-to-r from-transparent via-[#00E585]/40 to-transparent"
+        />
 
-        <div className="relative z-10 mx-auto max-w-5xl px-5 pb-24 text-center sm:px-6 md:pb-28 lg:px-8">
+        <div className="relative z-10 mx-auto max-w-4xl px-5 text-center sm:px-6">
           <motion.div
-            initial={{
-              opacity: 0,
-              y: 35,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              duration: 0.8,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="flex flex-col items-center"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-            <SectionLabel>Support / Knowledge</SectionLabel>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#1C2A22] bg-[#071009]/80 px-4 py-1.5 backdrop-blur">
+              <Satellite size={13} className="text-[#00E585]" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#93A096]">
+                Support · Knowledge Base
+              </span>
+            </div>
 
-            <h1 className="mt-7 text-[clamp(3.3rem,8vw,7rem)] font-medium leading-[0.92] tracking-[-0.065em] text-white">
-              Help <span className="text-[#00FF87]">Center</span>
+            <h1 className="vy-head mt-8 text-[clamp(3rem,9vw,6.5rem)] font-semibold leading-[0.95] tracking-[-0.03em]">
+              How can we
+              <br />
+              <span className="text-[#00E585]">help you?</span>
             </h1>
 
-            <p className="mt-7 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
-              Frequently asked questions about VyomAcre, rooftop discovery,
-              verification and the marketplace.
+            <p className="mx-auto mt-8 max-w-xl text-sm leading-7 text-[#93A096] sm:text-base sm:leading-8">
+              Answers about rooftop leasing, satellite verification and the VyomAcre
+              marketplace — plus an AI assistant that never sleeps.
             </p>
-          </motion.div>
 
-          <motion.div
-            initial={{
-              opacity: 0,
-              scaleX: 0.7,
-            }}
-            animate={{
-              opacity: 1,
-              scaleX: 1,
-            }}
-            transition={{
-              duration: 0.9,
-              delay: 0.15,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="mx-auto mt-16 h-px w-24 bg-gradient-to-r from-transparent via-[#00FF87]/50 to-transparent"
-          />
-        </div>
-      </section>
-
-      {/* =========================================================
-          FAQ SECTION
-      ========================================================= */}
-      <section className="relative border-y border-white/10">
-        <AmbientGlow className="right-[-14%] top-[34%] h-[400px] w-[400px]" />
-
-        <div className="relative z-10 mx-auto max-w-3xl px-5 py-20 sm:px-6 md:py-28 lg:px-8">
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 30,
-            }}
-            whileInView={{
-              opacity: 1,
-              y: 0,
-            }}
-            viewport={{
-              once: true,
-              margin: '-100px',
-            }}
-            transition={{
-              duration: 0.7,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="mb-10 text-center"
-          >
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">
-              Frequently Asked
-            </span>
-
-            <h2 className="mt-3 text-2xl font-medium tracking-[-0.04em] text-white sm:text-3xl">
-              Answers, without the noise.
-            </h2>
-          </motion.div>
-
-          <motion.div
-            variants={faqContainerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{
-              once: true,
-              margin: '-80px',
-            }}
-            className="space-y-3"
-          >
-            {faqs.map((faq) => (
-              <FAQItem
-                key={faq.id}
-                faq={faq}
-                isOpen={openFaq === faq.id}
-                onToggle={() => handleToggle(faq.id)}
-              />
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          AI ASSISTANT CTA
-      ========================================================= */}
-      <section className="relative overflow-hidden">
-        <AmbientGlow className="left-1/2 top-1/2 h-[420px] w-[700px] -translate-x-1/2 -translate-y-1/2" />
-
-        <div className="relative z-10 mx-auto max-w-4xl px-5 py-24 text-center sm:px-6 md:py-32 lg:px-8">
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 40,
-            }}
-            whileInView={{
-              opacity: 1,
-              y: 0,
-            }}
-            viewport={{
-              once: true,
-              margin: '-100px',
-            }}
-            transition={{
-              duration: 0.8,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.025] px-6 py-14 backdrop-blur-xl sm:px-10 md:py-20"
-          >
-            {/* Decorative HUD Lines */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-0 h-px w-40 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#00FF87]/40 to-transparent"
-            />
-
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 left-1/2 h-px w-40 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#00FF87]/20 to-transparent"
-            />
-
-            <div className="relative z-10">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-[#00FF87]/20 bg-[#00FF87]/[0.05]">
-                <span className="text-lg">✦</span>
-              </div>
-
-              <h2 className="mt-6 text-3xl font-medium leading-tight tracking-[-0.045em] text-white sm:text-4xl md:text-5xl">
-                Still have{' '}
-                <span className="text-[#00FF87]">questions?</span>
-              </h2>
-
-              <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
-                Our AI assistant is here 24/7 to help you navigate VyomAcre,
-                understand listings and find the information you need.
-              </p>
-
-              <Link
-                to="/chat"
-                className="mt-8 inline-flex items-center justify-center rounded-full bg-[#00FF87] px-7 py-3.5 text-sm font-semibold text-[#020706] shadow-[0_0_15px_rgba(0,255,135,0.3)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_26px_rgba(0,255,135,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00FF87] focus-visible:ring-offset-2 focus-visible:ring-offset-[#020706]"
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={openChatbot}
+                className="group inline-flex items-center gap-2 rounded-full bg-[#00E585] px-6 py-3 text-sm font-semibold text-[#04160C] shadow-[0_0_24px_rgba(0,229,133,0.25)] transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_0_38px_rgba(0,229,133,0.4)]"
               >
+                <Sparkles size={15} />
                 Chat with AI
-                <span className="ml-2 text-base leading-none">✦</span>
-              </Link>
-
-              <p className="mt-4 text-[9px] uppercase tracking-[0.18em] text-slate-700">
-                AI ASSISTANT / AVAILABLE 24·7
-              </p>
+              </button>
+              <a
+                href="#faq"
+                className="inline-flex items-center gap-2 rounded-full border border-[#1C2A22] bg-[#071009]/80 px-6 py-3 text-sm font-medium text-[#E7EFE9] backdrop-blur transition-colors duration-300 hover:border-[#00E585]/40 hover:text-[#00E585]"
+              >
+                Browse FAQ
+                <ChevronDown size={15} />
+              </a>
             </div>
           </motion.div>
+        </div>
+
+        {/* floating scroll cue */}
+        <motion.div
+          aria-hidden="true"
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[#93A096]"
+        >
+          <ChevronDown size={20} />
+        </motion.div>
+      </section>
+
+      {/* =========================================================
+          QUICK ACTIONS
+      ========================================================= */}
+      <section className="relative">
+        <Orb className="left-[-10%] top-[10%] h-[300px] w-[300px]" delay={0} />
+        <Orb className="right-[-8%] bottom-[5%] h-[240px] w-[240px]" delay={2} />
+
+        <div className="relative z-10 mx-auto max-w-5xl px-5 py-20 sm:px-6 sm:py-28">
+          <Reveal>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#00E585]">
+              Quick help
+            </span>
+            <h2 className="vy-head mt-3 text-3xl font-semibold tracking-[-0.02em] sm:text-4xl">
+              Get moving in seconds.
+            </h2>
+          </Reveal>
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {QUICK_ACTIONS.map((a, i) => {
+              const Icon = a.icon;
+              const inner = (
+                <>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#1C2A22] bg-[#071009] transition-colors duration-300 group-hover:border-[#00E585]/50 group-hover:shadow-[0_0_18px_rgba(0,229,133,0.15)]">
+                    <Icon size={19} className="text-[#00E585]" />
+                  </div>
+                  <div className="mt-5 flex items-center gap-1.5">
+                    <h3 className="vy-head text-lg font-semibold">{a.title}</h3>
+                    <ArrowUpRight
+                      size={15}
+                      className="text-[#93A096] transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#00E585]"
+                    />
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-[#93A096]">{a.desc}</p>
+                </>
+              );
+
+              const cls =
+                'group relative h-full overflow-hidden rounded-2xl border border-[#1C2A22] bg-[#071009]/70 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-1.5 hover:border-[#00E585]/35 hover:shadow-[0_18px_50px_rgba(0,0,0,0.35)]';
+
+              return (
+                <Reveal key={a.title} delay={i * 0.1} className="h-full">
+                  {a.action === 'chat' ? (
+                    <button onClick={() => handleQuick(a)} className={cls + ' w-full text-left'}>
+                      {inner}
+                    </button>
+                  ) : (
+                    <Link to={a.to} className={cls + ' block'}>
+                      {inner}
+                    </Link>
+                  )}
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================
+          FAQ — interactive expanding rows
+      ========================================================= */}
+      <section id="faq" className="relative border-t border-[#182420] bg-[#071009]/40">
+        <Orb className="right-[-12%] top-[20%] h-[340px] w-[340px]" delay={1} />
+
+        <div className="relative z-10 mx-auto max-w-3xl px-5 py-20 sm:px-6 sm:py-28">
+          <Reveal className="text-center">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#00E585]">
+              Frequently asked
+            </span>
+            <h2 className="vy-head mt-3 text-3xl font-semibold tracking-[-0.02em] sm:text-4xl">
+              Answers, without the noise.
+            </h2>
+          </Reveal>
+
+          <div className="mt-12 divide-y divide-[#182420] border-y border-[#182420]">
+            {FAQS.map((faq, i) => {
+              const isOpen = openFaq === faq.id;
+              return (
+                <Reveal key={faq.id} delay={i * 0.06}>
+                  <button
+                    onClick={() => setOpenFaq(isOpen ? null : faq.id)}
+                    className={
+                      'group flex w-full items-center gap-4 px-1 py-5 text-left transition-colors duration-300 sm:gap-6 sm:px-3 ' +
+                      (isOpen ? '' : 'hover:bg-[#00E585]/[0.03]')
+                    }
+                  >
+                    <span
+                      className={
+                        'vy-head text-xs font-semibold tracking-[0.15em] transition-colors duration-300 ' +
+                        (isOpen ? 'text-[#00E585]' : 'text-[#93A096]/50 group-hover:text-[#00E585]/70')
+                      }
+                    >
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span
+                      className={
+                        'vy-head flex-1 text-base font-medium transition-colors duration-300 sm:text-lg ' +
+                        (isOpen ? 'text-[#F4F8F5]' : 'text-[#E7EFE9] group-hover:text-[#F4F8F5]')
+                      }
+                    >
+                      {faq.question}
+                    </span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 45 : 0 }}
+                      transition={{ duration: 0.25 }}
+                      className={
+                        'flex h-8 w-8 flex-none items-center justify-center rounded-full border transition-colors duration-300 ' +
+                        (isOpen
+                          ? 'border-[#00E585]/50 text-[#00E585]'
+                          : 'border-[#1C2A22] text-[#93A096] group-hover:border-[#00E585]/30 group-hover:text-[#00E585]')
+                      }
+                    >
+                      <span className="relative flex h-3 w-3 items-center justify-center">
+                        <span className="absolute h-px w-3 bg-current" />
+                        <span className="absolute h-px w-3 rotate-90 bg-current" />
+                      </span>
+                    </motion.span>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <p className="px-1 pb-6 pl-10 text-sm leading-7 text-[#93A096] sm:px-3 sm:pl-[3.4rem]">
+                          {faq.answer}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* =========================================================
+          AI CTA
+      ========================================================= */}
+      <section className="relative overflow-hidden border-t border-[#182420]">
+        <Orb className="left-1/2 top-1/2 h-[380px] w-[640px] -translate-x-1/2 -translate-y-1/2" delay={0.5} />
+
+        <div className="relative z-10 mx-auto max-w-4xl px-5 py-24 text-center sm:px-6 sm:py-32">
+          <Reveal>
+            <div className="relative overflow-hidden rounded-[2rem] border border-[#1C2A22] bg-[#071009]/80 px-6 py-14 backdrop-blur sm:px-10 sm:py-20">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-0 h-px w-44 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#00E585]/40 to-transparent"
+              />
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-0 left-1/2 h-px w-44 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#00E585]/20 to-transparent"
+              />
+
+              <div className="relative z-10">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#00E585]/25 bg-[#00E585]/[0.06]">
+                  <Sparkles size={19} className="text-[#00E585]" />
+                </div>
+
+                <h2 className="vy-head mt-6 text-3xl font-semibold leading-tight tracking-[-0.025em] sm:text-4xl md:text-5xl">
+                  Still have <span className="text-[#00E585]">questions?</span>
+                </h2>
+
+                <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-[#93A096] sm:text-base sm:leading-8">
+                  Our AI assistant is here 24·7 to help you navigate VyomAcre,
+                  understand listings and find the information you need.
+                </p>
+
+                <button
+                  onClick={openChatbot}
+                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#00E585] px-7 py-3.5 text-sm font-semibold text-[#04160C] shadow-[0_0_20px_rgba(0,229,133,0.28)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_34px_rgba(0,229,133,0.42)]"
+                >
+                  Chat with AI
+                  <ArrowUpRight size={15} />
+                </button>
+
+                <p className="mt-4 flex items-center justify-center gap-2 text-[9px] uppercase tracking-[0.2em] text-[#93A096]/70">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00E585] opacity-60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#00E585]" />
+                  </span>
+                  AI Assistant · Online 24·7
+                </p>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
     </main>

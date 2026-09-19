@@ -16,9 +16,13 @@ import OwnerStatusDashboard from './components/OwnerStatusDashboard';
 import MapDashboard from './components/MapDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import SeekerDashboard from './components/SeekerDashboard';
+import About from './components/About';
+import Help from './components/Help';
+import ScrollToTop from './components/ScrollToTop';
+import AdminPanel from './components/AdminPanel';
 
 const PlaceholderPage = ({ title, message }) => (
-  <div className="min-h-screen bg-slate-950 px-6 py-20 text-white">
+  <div className="min-h-screen bg-[#050A08] px-6 py-20 text-white">
     <div className="mx-auto max-w-5xl text-center">
       <h1 className="text-4xl font-bold">{title}</h1>
       <p className="mt-4 text-slate-400">{message}</p>
@@ -37,7 +41,8 @@ const App = () => {
   return (
     <BrowserRouter>
       <UIProvider>
-        <div className="min-h-screen bg-slate-950 text-white">
+        <ScrollToTop />
+        <div className="min-h-screen bg-[#050A08] text-white">
           <Navbar />
 
           <main>
@@ -116,10 +121,9 @@ const App = () => {
               <Route
                 path="/admin"
                 element={
-                  <PlaceholderPage
-                    title="Admin Dashboard"
-                    message="Admin dashboard is being integrated."
-                  />
+                  <ProtectedRoute allowedRole="admin">
+                    <AdminPanel />
+                  </ProtectedRoute>
                 }
               />
 
@@ -134,26 +138,9 @@ const App = () => {
                 }
               />
 
-              {/* Other Pages */}
-              <Route
-                path="/about"
-                element={
-                  <PlaceholderPage
-                    title="About VyomAcre"
-                    message="Learn more about the VyomAcre platform."
-                  />
-                }
-              />
-
-              <Route
-                path="/help"
-                element={
-                  <PlaceholderPage
-                    title="Help & Support"
-                    message="Help and support section is being integrated."
-                  />
-                }
-              />
+              {/* Other Pages — real components wired */}
+              <Route path="/about" element={<About />} />
+              <Route path="/help" element={<Help />} />
 
               <Route
                 path="/legacy"

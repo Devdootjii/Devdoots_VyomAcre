@@ -347,6 +347,8 @@ export default function VyomLanding() {
     { tag: 'LIVE NOW', title: 'Satellite verification', desc: 'Google Earth Engine roof scans working in production — every new roof is auto-verified on add.' },
     { tag: 'LIVE NOW', title: 'Lease marketplace', desc: 'Owner listings, seeker requests, owner accept/reject flow — all live with role-based access.' },
     { tag: 'LIVE NOW', title: 'AI assistant', desc: 'Gemini-powered chatbot answering leasing questions, with 429 auto-retry and response caching.' },
+    { tag: 'NEXT', title: 'Beyond rooftops — plots & farmland', desc: 'The same satellite engine that measures roofs extends to open plots, farmland and commercial land — every idle space in India, on one map.' },
+    { tag: 'NEXT', title: 'Account recovery & verification', desc: 'Email verification, password reset flows and notification emails for every account.' },
     { tag: 'NEXT', title: 'Digital agreements', desc: 'Paperless lease signing and downloadable agreement documents.' },
     { tag: 'NEXT', title: 'Payments & payouts', desc: 'Automated monthly rent payouts to owner accounts.' },
   ];
