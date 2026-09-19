@@ -6,9 +6,9 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: light;
-  background-color: #f1f5f9;
-  color: #0f172a;
+  color-scheme: dark;
+  background-color: #050A08;
+  color: #F4F8F5;
 }
 
 body {
@@ -22,4 +22,35 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
+}
+
+/* ---------- Dark scrollbar (white scrollbar fix) ---------- */
+
+/* Firefox */
+html {
+  scrollbar-color: #1C2A22 #050A08;
+  scrollbar-width: thin;
+}
+
+/* Chrome / Edge / Safari */
+::-webkit-scrollbar {
+  width: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050A08;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1C2A22;
+  border-radius: 8px;
+  border: 2px solid #050A08;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2A3D32;
+}
+
+::-webkit-scrollbar-corner {
+  background: #050A08;
 }

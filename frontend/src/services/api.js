@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const API_BASE_URL = isLocal ? 'http://127.0.0.1:8000' : 'https://devdoots-vyomacre-y0gr.onrender.com';
+/* ============================================================
+   Ek hi source of truth: LIVE backend.
+   PostgreSQL database, seeded rooftops, admin accounts — sab LIVE
+   backend pe hain, isliye local dev frontend bhi wahi use karta hai.
+   (Local backend chahiye ho toh neeche wali line se switch kar lena.)
+   ============================================================ */
+const API_BASE_URL = 'https://devdoots-vyomacre-y0gr.onrender.com';
+// const API_BASE_URL = 'http://127.0.0.1:8000';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
