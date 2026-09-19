@@ -60,31 +60,7 @@ function MapFlyTo({ target }) {
   return null;
 }
 
-function LocationPickerMap({ lat, lng, onPick }) {
-  const [flyingTo, setFlyingTo] = useState(null);
-  const [locating, setLocating] = useState(false);
-
-  const detectLocation = () => {
-    if (!navigator.geolocation) {
-      alert('Geolocation is not supported by this browser.');
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const loc = [pos.coords.latitude, pos.coords.longitude];
-        setFlyingTo(loc);
-        onPick(loc[0], loc[1]);
-        setLocating(false);
-      },
-      () => {
-        alert('Location access permission was denied.');
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
-
+function LocationPickerMap({ lat, lng, onPick, flyTarget, view }) {
   const hasPin =
     lat !== '' && lng !== '' &&
     !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng)) &&
@@ -94,44 +70,49 @@ function LocationPickerMap({ lat, lng, onPick }) {
   const center = hasPin ? [Number(lat), Number(lng)] : [26.8467, 80.9467];
 
   return (
-    <div className="relative h-full w-full">
-      <MapContainer center={center} zoom={hasPin ? 16 : 11} maxZoom={16} className="h-full w-full cursor-crosshair">
-        <MapClickPicker onPick={onPick} />
-        <MapFlyTo target={flyingTo} />
+    <MapContainer center={center} zoom={hasPin ? 17 : 13} maxZoom={18} className="h-full w-full cursor-crosshair">
+      <MapClickPicker onPick={onPick} />
+      <MapFlyTo target={flyTarget} />
+      {view === 'satellite' ? (
         <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-          attribution="Tiles © Esri — Esri, DeLorme, NAVTEQ"
+          key="sat"
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          attribution="Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics"
+          maxZoom={18}
+          maxNativeZoom={17}
         />
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
-          attribution=""
-        />
-        {hasPin && (
-          <Marker
-            position={[Number(lat), Number(lng)]}
-            icon={ROOF_PIN}
-            draggable
-            eventHandlers={{
-              dragend: (e) => {
-                const p = e.target.getLatLng();
-                onPick(p.lat, p.lng);
-              },
-            }}
+      ) : (
+        <>
+          <TileLayer
+            key="dark"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+            attribution="Tiles © Esri — Esri, DeLorme, NAVTEQ"
+            maxZoom={18}
+            maxNativeZoom={16}
           />
-        )}
-      </MapContainer>
-
-      {/* Detect my location — jump to live position, then adjust the pin */}
-      <button
-        type="button"
-        onClick={detectLocation}
-        disabled={locating}
-        className="absolute right-3 top-3 z-[1001] inline-flex items-center gap-1.5 rounded-lg border border-[#1C2A22] bg-[#0A1410]/90 px-3 py-2 text-xs font-medium text-[#C9D6CC] backdrop-blur transition-all duration-300 hover:border-[#00E585]/50 hover:text-[#00E585] disabled:opacity-60"
-      >
-        <Crosshair size={12} className={locating ? 'animate-spin' : ''} />
-        {locating ? 'Detecting…' : 'Detect my location'}
-      </button>
-    </div>
+          <TileLayer
+            key="darkref"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+            attribution=""
+            maxZoom={18}
+            maxNativeZoom={16}
+          />
+        </>
+      )}
+      {hasPin && (
+        <Marker
+          position={[Number(lat), Number(lng)]}
+          icon={ROOF_PIN}
+          draggable
+          eventHandlers={{
+            dragend: (e) => {
+              const p = e.target.getLatLng();
+              onPick(p.lat, p.lng);
+            },
+          }}
+        />
+      )}
+    </MapContainer>
   );
 }
 
@@ -146,6 +127,32 @@ const OwnerForm = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  /* map picker: live location detection */
+  const [flyTarget, setFlyTarget] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [mapView, setMapView] = useState('satellite');
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by this browser.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = [pos.coords.latitude, pos.coords.longitude];
+        setFlyTarget(loc);
+        setFormData((p) => ({ ...p, latitude: loc[0].toFixed(6), longitude: loc[1].toFixed(6) }));
+        setLocating(false);
+      },
+      () => {
+        alert('Location access permission was denied. Allow location in the browser, or tap the map to place the pin manually.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -421,15 +428,34 @@ const OwnerForm = () => {
 
           {/* Map picker — click to set coordinates */}
           <div className="mb-6 overflow-hidden rounded-xl border border-[#1C2A22]">
-            <div className="flex items-center gap-2 border-b border-[#182420] bg-[#071009] px-4 py-2.5">
+            <div className="flex flex-wrap items-center gap-2 border-b border-[#182420] bg-[#071009] px-4 py-2.5">
               <MapPin size={13} className="text-[#00E585]" />
               <span className="text-xs font-medium text-[#C9D6CC]">Pick your rooftop on the map</span>
-              <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-[#93A096]/70">Click to drop pin</span>
+              <button
+                type="button"
+                onClick={detectLocation}
+                disabled={locating}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-[#1C2A22] bg-[#0A1410] px-3 py-1.5 text-[11px] font-semibold text-[#C9D6CC] transition-all duration-300 hover:border-[#00E585]/50 hover:text-[#00E585] disabled:opacity-60"
+              >
+                <Crosshair size={11} className={locating ? 'animate-spin' : ''} />
+                {locating ? 'Detecting…' : 'Detect my location'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMapView((v) => (v === 'satellite' ? 'dark' : 'satellite'))}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#1C2A22] bg-[#0A1410] px-3 py-1.5 text-[11px] font-semibold text-[#C9D6CC] transition-all duration-300 hover:border-[#00E585]/50 hover:text-[#00E585]"
+              >
+                <Satellite size={11} />
+                {mapView === 'satellite' ? 'Dark view' : 'Satellite view'}
+              </button>
             </div>
             <div className="h-64 sm:h-72">
               <LocationPickerMap
                 lat={formData.latitude}
                 lng={formData.longitude}
+                flyTarget={flyTarget}
+                view={mapView}
                 onPick={(la, ln) =>
                   setFormData((p) => ({ ...p, latitude: la.toFixed(6), longitude: ln.toFixed(6) }))
                 }

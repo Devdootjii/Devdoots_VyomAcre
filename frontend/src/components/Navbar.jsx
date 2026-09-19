@@ -108,22 +108,22 @@ const Navbar = () => {
   }
 
   return (
-    <nav className="sticky top-0 z-50">
+    <nav className="sticky top-0 z-[1100]">
       <style>{`
 @keyframes vyorbit { to { transform: rotate(360deg); } }
 @keyframes vyorbitrev { to { transform: rotate(-360deg); } }
 .vy-orbit { animation: vyorbit 7s linear infinite; }
 .vy-orbit-rev { animation: vyorbitrev 10.5s linear infinite; }
 `}</style>
-      {/* Wrapper — gains side padding when scrolled so the pill floats */}
-      <div className={'transition-all duration-500 ' + (scrolled ? 'px-4 pt-4 sm:px-5' : 'px-0 pt-0')}>
-        {/* The bar itself — solid theme color at top, liquid glass pill when scrolled */}
+      {/* Wrapper — floating margins always, so content scrolls past on all sides */}
+      <div className="px-4 pt-3.5 sm:px-5">
+        {/* The bar — always a rounded liquid-glass pill; deepens as you scroll */}
         <div
           className={
-            'mx-auto max-w-7xl transition-all duration-500 ' +
+            'mx-auto max-w-7xl rounded-[22px] border backdrop-saturate-150 transition-all duration-500 ' +
             (scrolled
-              ? 'rounded-[22px] border border-[#1C2A22]/80 bg-[#0A1410]/50 shadow-[0_14px_44px_rgba(0,0,0,0.5)] backdrop-blur-2xl backdrop-saturate-150'
-              : 'rounded-none border border-transparent bg-[#050A08]')
+              ? 'border-[#1C2A22]/80 bg-[#0A1410]/55 backdrop-blur-2xl shadow-[0_18px_50px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)]'
+              : 'border-[#1C2A22]/60 bg-[#0A1410]/30 backdrop-blur-lg shadow-[0_10px_30px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.05)]')
           }
         >
           <div className="flex items-center justify-between px-5 py-4 sm:px-7 sm:py-5">

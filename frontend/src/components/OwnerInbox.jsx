@@ -394,7 +394,7 @@ const OwnerInbox = () => {
                       <button
                         type="button"
                         disabled={updatingId === requestId}
-                        onClick={() => handleStatusUpdate(requestId, 'leased')}
+                        onClick={() => handleStatusUpdate(requestId, 'accepted')}
                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#00E585] px-6 py-3 text-sm font-semibold text-[#04160C] shadow-[0_0_18px_rgba(0,229,133,0.2)] transition-all duration-300 hover:shadow-[0_0_28px_rgba(0,229,133,0.35)] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <Check size={15} />
@@ -413,7 +413,7 @@ const OwnerInbox = () => {
                     </div>
                   )}
 
-                  {status === 'leased' && (
+                  {(status === 'leased' || status === 'accepted') && (
                     <div className="mt-6 flex items-center gap-2 rounded-xl border border-[#00E585]/25 bg-[#00E585]/[0.06] px-4 py-3 text-sm text-[#4FFFAB]">
                       <Check size={15} />
                       This property has been leased successfully.
