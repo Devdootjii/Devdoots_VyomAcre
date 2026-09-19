@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Satellite, MapPin, Maximize, Crosshair, Home } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { submitRoofDetails } from '../services/api';
 
 /* ============================================================
@@ -27,6 +30,110 @@ const initialFormData = {
   longitude: '',
   area_sqft: '',
 };
+
+/* ---------- map location picker (no Google Maps needed) ---------- */
+const ROOF_PIN = L.divIcon({
+  className: 'vy-roof-pin',
+  html: `
+    <div style="position: relative; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;">
+      <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background: #00E585; opacity: 0.25; animation: vyPinPulse 1.8s ease-out infinite;"></div>
+      <div style="position: relative; width: 12px; height: 12px; border-radius: 50%; background: #00E585; border: 2.5px solid #050A08; box-shadow: 0 0 14px rgba(0,229,133,0.9);"></div>
+    </div>
+  `,
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+});
+
+function MapClickPicker({ onPick }) {
+  useMapEvents({
+    click: (e) => onPick(e.latlng.lat, e.latlng.lng),
+  });
+  return null;
+}
+
+/* fly the map to a target once it changes */
+function MapFlyTo({ target }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo(target, 16, { duration: 1.2 });
+  }, [target, map]);
+  return null;
+}
+
+function LocationPickerMap({ lat, lng, onPick }) {
+  const [flyingTo, setFlyingTo] = useState(null);
+  const [locating, setLocating] = useState(false);
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by this browser.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = [pos.coords.latitude, pos.coords.longitude];
+        setFlyingTo(loc);
+        onPick(loc[0], loc[1]);
+        setLocating(false);
+      },
+      () => {
+        alert('Location access permission was denied.');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const hasPin =
+    lat !== '' && lng !== '' &&
+    !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng)) &&
+    Number(lat) >= -90 && Number(lat) <= 90 &&
+    Number(lng) >= -180 && Number(lng) <= 180;
+
+  const center = hasPin ? [Number(lat), Number(lng)] : [26.8467, 80.9467];
+
+  return (
+    <div className="relative h-full w-full">
+      <MapContainer center={center} zoom={hasPin ? 16 : 11} maxZoom={16} className="h-full w-full cursor-crosshair">
+        <MapClickPicker onPick={onPick} />
+        <MapFlyTo target={flyingTo} />
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          attribution="Tiles © Esri — Esri, DeLorme, NAVTEQ"
+        />
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+          attribution=""
+        />
+        {hasPin && (
+          <Marker
+            position={[Number(lat), Number(lng)]}
+            icon={ROOF_PIN}
+            draggable
+            eventHandlers={{
+              dragend: (e) => {
+                const p = e.target.getLatLng();
+                onPick(p.lat, p.lng);
+              },
+            }}
+          />
+        )}
+      </MapContainer>
+
+      {/* Detect my location — jump to live position, then adjust the pin */}
+      <button
+        type="button"
+        onClick={detectLocation}
+        disabled={locating}
+        className="absolute right-3 top-3 z-[1001] inline-flex items-center gap-1.5 rounded-lg border border-[#1C2A22] bg-[#0A1410]/90 px-3 py-2 text-xs font-medium text-[#C9D6CC] backdrop-blur transition-all duration-300 hover:border-[#00E585]/50 hover:text-[#00E585] disabled:opacity-60"
+      >
+        <Crosshair size={12} className={locating ? 'animate-spin' : ''} />
+        {locating ? 'Detecting…' : 'Detect my location'}
+      </button>
+    </div>
+  );
+}
 
 /* ---------- shared field ---------- */
 const FIELD =
@@ -132,6 +239,17 @@ const OwnerForm = () => {
       <style>{`
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 .vy-head { font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; letter-spacing: -0.01em; }
+@keyframes vyPinPulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.vy-roof-pin { background: transparent !important; border: none !important; }
+.leaflet-container { background: #050A08 !important; font-family: inherit; }
+.leaflet-bar a { background: #0A1410 !important; color: #93A096 !important; border-color: #1C2A22 !important; }
+.leaflet-bar a:hover { background: #071009 !important; color: #00E585 !important; }
+.leaflet-control-attribution { background: rgba(5,10,8,0.75) !important; color: #5E6B62 !important; }
+.leaflet-control-attribution a { color: #93A096 !important; }
 `}</style>
 
       <div className="relative mx-auto max-w-3xl">
@@ -296,9 +414,27 @@ const OwnerForm = () => {
             </div>
 
             <p className="text-xs leading-5 text-[#93A096]/80 sm:col-span-2">
-              Tip: right-click your rooftop on Google Maps and copy the
-              coordinates that appear.
+              Easiest way: click the map below to drop a pin exactly on your rooftop — drag it to fine-tune.
+              You can still type the coordinates manually.
             </p>
+          </div>
+
+          {/* Map picker — click to set coordinates */}
+          <div className="mb-6 overflow-hidden rounded-xl border border-[#1C2A22]">
+            <div className="flex items-center gap-2 border-b border-[#182420] bg-[#071009] px-4 py-2.5">
+              <MapPin size={13} className="text-[#00E585]" />
+              <span className="text-xs font-medium text-[#C9D6CC]">Pick your rooftop on the map</span>
+              <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-[#93A096]/70">Click to drop pin</span>
+            </div>
+            <div className="h-64 sm:h-72">
+              <LocationPickerMap
+                lat={formData.latitude}
+                lng={formData.longitude}
+                onPick={(la, ln) =>
+                  setFormData((p) => ({ ...p, latitude: la.toFixed(6), longitude: ln.toFixed(6) }))
+                }
+              />
+            </div>
           </div>
 
           {/* Area */}

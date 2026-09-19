@@ -178,13 +178,23 @@ export default function OwnerStatusDashboard() {
             </p>
           </div>
 
-          <button
-            onClick={fetchRoofs}
-            className="inline-flex items-center gap-2 rounded-xl border border-[#24352B] bg-[#0A1410] px-5 py-3 text-sm font-medium text-[#D7E2DA] transition-colors hover:border-[#00E585]/50 hover:text-[#00E585]"
-          >
-            <RefreshCw size={14} />
-            Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={fetchRoofs}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#24352B] bg-[#0A1410] px-5 py-3 text-sm font-medium text-[#D7E2DA] transition-colors hover:border-[#00E585]/50 hover:text-[#00E585]"
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </button>
+
+            <Link
+              to="/owner/new-roof"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#00E585] px-5 py-3 text-sm font-semibold text-[#04160C] shadow-[0_0_22px_rgba(0,229,133,0.22)] transition-all duration-300 hover:shadow-[0_0_32px_rgba(0,229,133,0.38)]"
+            >
+              <Plus size={15} />
+              List new roof
+            </Link>
+          </div>
         </div>
 
         {/* stats */}
