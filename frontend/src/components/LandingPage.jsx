@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
     ArrowRight,
     CheckCircle2,
@@ -24,7 +25,7 @@ export default function LandingPage() {
             <nav className="relative z-10 border-b border-white/10">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
 
-                    <div className="flex items-center gap-3">
+                    <Link to="/" className="flex items-center gap-3">
                         <div className="rounded-xl bg-gradient-to-br from-sky-500 to-emerald-400 p-2 shadow-lg shadow-sky-500/20">
                             <Home size={25} />
                         </div>
@@ -32,21 +33,21 @@ export default function LandingPage() {
                         <span className="text-2xl font-extrabold tracking-tight">
                             Vyom<span className="text-sky-400">Acre</span>
                         </span>
-                    </div>
+                    </Link>
 
                     <div className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-                        <a href="#" className="text-sky-400">Home</a>
+                        <Link to="/" className="text-sky-400">Home</Link>
                         <a href="#benefits" className="transition hover:text-white">Features</a>
-                        <a href="#owner-form" className="transition hover:text-white">List Roof</a>
-                        <a href="#owner-status" className="transition hover:text-white">Status</a>
+                        <Link to="/owner-form" className="transition hover:text-white">List Roof</Link>
+                        <Link to="/owner-status" className="transition hover:text-white">Status</Link>
                     </div>
 
-                    <a
-                        href="#owner-form"
+                    <Link
+                        to="/owner-form"
                         className="hidden rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-5 py-2.5 font-bold text-white shadow-lg shadow-sky-500/20 transition hover:scale-105 md:block"
                     >
                         Get Started
-                    </a>
+                    </Link>
                 </div>
             </nav>
 
@@ -82,8 +83,8 @@ export default function LandingPage() {
                     {/* Buttons */}
                     <div className="mt-8 flex flex-wrap gap-4">
 
-                        <a
-                            href="#owner-form"
+                        <Link
+                            to="/owner-form"
                             className="group flex items-center gap-3 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-6 py-4 font-bold shadow-xl shadow-sky-500/20 transition hover:scale-105"
                         >
                             <Home size={20} />
@@ -92,15 +93,15 @@ export default function LandingPage() {
                                 size={20}
                                 className="transition group-hover:translate-x-1"
                             />
-                        </a>
+                        </Link>
 
-                        <a
-                            href="#owner-status"
+                        <Link
+                            to="/owner-status"
                             className="flex items-center gap-3 rounded-xl border border-slate-600 bg-white/5 px-6 py-4 font-bold backdrop-blur transition hover:border-sky-400 hover:bg-white/10"
                         >
                             <Search size={20} />
                             Check Status
-                        </a>
+                        </Link>
 
                     </div>
 
