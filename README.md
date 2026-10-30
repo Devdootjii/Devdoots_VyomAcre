@@ -1,432 +1,182 @@
-# 🚀 VyomAcre
+# VyomAcre
 
-### Connecting Empty Spaces with the Right Opportunities.
+A marketplace for renting out rooftops and land. Owners list a space, it gets
+checked, and businesses that need that space — solar developers, telecom tower
+companies, brands — lease it.
 
-VyomAcre is a platform that connects companies looking for suitable
-rooftops, land, or other spaces with property owners who have
-available spaces.
-
-> **Discover. Connect. Build.**
-
----
-
-## 🌍 About VyomAcre
-
-VyomAcre is a space discovery and connection platform designed
-to bridge the gap between property owners and companies looking
-for suitable rooftops, land, or other usable spaces.
-
-The platform brings space information, location data, geospatial
-processing, and an interactive map experience together in one
-centralized system.
-
-### 🎯 Our Goal
-
-To make it easier to discover suitable spaces and create a
-structured connection between space owners and companies.
+**Live app:** https://devdoots-vyom-acre-nine.vercel.app
+**API:** https://devdoots-vyomacre-y0gr.onrender.com (docs at `/docs`)
+**Lead form:** https://vyomacre-leads.vercel.app ([separate repo](https://github.com/Devdootjii/vyomacre-leads))
 
 ---
 
-## 🎯 Problem Statement
+## The problem
 
-Companies may need suitable rooftops, land, or other spaces for
-their business requirements, while property owners may have
-available spaces but lack an efficient way to reach potential
-companies.
+India has roughly 637 GW of rooftop solar potential and about 23 GW installed.
+A large part of the gap is not technology or money — it is that nobody knows
+which roofs exist, who owns them, and whether the roof is any good.
 
-This creates a discovery and connectivity gap.
+On the other side, a building owner with a spare roof has no practical way to
+reach the companies that would pay for it. Deals happen through informal
+brokers, over phone calls, with no verification and no record.
 
-### The Challenge
-
-- 🏢 Companies need suitable locations
-- 🏠 Property owners have available spaces
-- 📍 Location and space information can be difficult to organize
-- 🔎 Finding suitable spaces can be time-consuming
-- 🤝 Owners and companies need a structured way to connect
+VyomAcre sits in that gap.
 
 ---
 
-## 💡 Our Solution
+## How it works
 
-VyomAcre provides a centralized platform to organize and discover
-suitable spaces.
+**Owner** signs up, lists a rooftop on a map (pin drop, or "detect my
+location"), gives the area, roof type and photos. The listing goes to
+verification.
 
-The system is designed around three major components:
+**Verification** — an Earth Engine script estimates the built-up area around the
+submitted coordinates, and the estimate is compared with what the owner
+claimed. A large mismatch flags the listing for review. This is a
+**pre-screen**, not a measurement: the imagery is coarse, so the number is
+treated as a sanity check and confirmed on a site visit before any deal. An
+admin marks the listing verified or flagged.
 
-- 🖥️ **Frontend** — User interface and interactive map experience
-- ⚡ **Backend** — APIs and application logic
-- 🌍 **Geospatial Engine** — Location and space processing
+**Business (seeker)** browses verified listings on the map with filters, sends a
+lease request, and gets the owner's contact only after the owner accepts. The
+deal stays on the platform until that point.
 
-Together, these components create a workflow from space
-onboarding to discovery and connection.
+**Admin** sees every roof with its submitted and estimated area, the
+verification status, and can verify, flag or reject.
 
----
-
-## ⚙️ How VyomAcre Works
-
-```text
-        🏠 Property Owner
-               │
-               ▼
-       Owner Onboarding
-               │
-               ▼
-      Space Information
-               │
-               ▼
-    🌍 Geospatial Processing
-               │
-               ▼
-        Verified Spaces
-               │
-               ▼
-       🗺️ Map Dashboard
-               │
-               ▼
-      🏢 Company Discovery
-               │
-               ▼
-            🤝 Connect
-```
+**AI assistant** — a Gemini-powered chat that answers questions in Hindi and
+English and walks people through listing a roof.
 
 ---
 
-## ✨ Key Features
+## Stack
 
-- 🏠 **Property Owner Onboarding**
-  - Owners can submit their available space details.
-
-- 📍 **Location-Based Information**
-  - Store important location and space information.
-
-- 🗺️ **Interactive Map Dashboard**
-  - Visualize suitable spaces through a map-based interface.
-
-- 🌍 **Geospatial Processing**
-  - Process location-based information to identify suitable spaces.
-
-- 🔎 **Space Discovery**
-  - Help companies discover potentially suitable spaces.
-
-- 🔌 **REST API Integration**
-  - Connect the frontend, backend, and geospatial engine through APIs.
-
-- 🔐 **Secure Configuration**
-  - Keep API keys, database credentials, and other secrets in environment variables.
-
-- ☁️ **Cloud-Ready Architecture**
-  - Designed for frontend, backend, and database cloud deployment.
-
----
-
-## 🏗️ System Architecture
-
-VyomAcre follows a modular monorepo architecture:
-
-```text
-Devdoots_VyomAcre
-│
-├── frontend/
-│   └── User Interface & Map Dashboard
-│
-├── backend/
-│   └── FastAPI APIs & Application Logic
-│
-└── engine/
-    └── Geospatial Processing
-```
-
-### 🖥️ Frontend
-
-The frontend handles the user-facing experience, including the
-property owner onboarding flow and map dashboard.
-
-### ⚡ Backend
-
-The backend provides the APIs and application logic required to
-manage space information and communicate with the frontend.
-
-### 🌍 Geospatial Engine
-
-The engine handles geospatial processing and location-based
-analysis for suitable spaces.
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
+| Layer | What |
 |---|---|
-| Frontend | React |
-| Styling | Tailwind CSS |
-| Backend | FastAPI |
-| Database | PostgreSQL |
-| Geospatial | Python / Google Earth Engine |
-| Version Control | Git & GitHub |
+| Frontend | React 19, Vite, Tailwind, React Router, Leaflet + Esri imagery, Framer Motion |
+| Backend | FastAPI, SQLAlchemy 2.0, Pydantic v2, JWT auth (bcrypt + python-jose) |
+| Database | PostgreSQL (Neon in production) |
+| Geospatial | Google Earth Engine (earthengine-api) |
+| AI | Gemini via `google-generativeai` |
+| Hosting | Vercel (frontend), Render (backend), Neon (database) |
 
 ---
 
-## 📁 Project Structure
+## Repository layout
 
-```text
-Devdoots_VyomAcre/
-│
-├── frontend/
-│   └── src/
-│       ├── components/
-│       │   ├── OwnerForm.jsx
-│       │   └── MapDashboard.jsx
-│       │
-│       └── services/
-│           └── api.js
-│
-├── backend/
-│   ├── main.py
-│   ├── models.py
-│   ├── schemas.py
-│   └── routes/
-│       └── roof_api.py
-│
-├── engine/
-│   ├── scanner.py
-│   └── processor.py
-│
-├── .gitignore
-└── README.md
+```
+backend/          FastAPI app
+  main.py           app entry, CORS, startup table creation
+  models.py         SQLAlchemy models (roofs, leases, zones)
+  auth_*.py         users, signup/login, JWT
+  routes/           auth, roofs, leases, admin, ai, zones
+  services/         verification_service.py (Earth Engine calls)
+  config.py         settings from environment
+  database.py       engine + session
+frontend/         React app
+  src/components/   landing, maps, dashboards, forms, chatbot
+  src/services/api.js
+engine/           Earth Engine scripts (area estimate, zone scanning)
 ```
 
 ---
 
-## 🔌 API Documentation
+## Running it locally
 
-### 1. Add Roof / Space
-
-```http
-POST /api/roofs/add
-```
-
-Used to submit property owner and space information.
-
-#### Request Fields
-
-```json
-{
-  "owner_name": "Owner Name",
-  "phone_number": "Phone Number",
-  "area_sqft": 1500,
-  "roof_type": "Concrete",
-  "latitude": 28.6139,
-  "longitude": 77.2090,
-  "photos": []
-}
-```
-### 2. Get All Spaces
-
-```http
-GET /api/roofs
-```
-
-Returns all roof/space listings stored in the database.
-
-This endpoint is used by the Map Dashboard to fetch available
-space locations and display them as map markers.
-
-#### Response
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "roof_id": 1,
-      "owner_name": "Owner Name",
-      "area_sqft": 1500,
-      "roof_type": "Concrete",
-      "latitude": 28.6139,
-      "longitude": 77.2090
-    }
-  ]
-}
-```
----
-
-### 2. Engine Sync
-
-```http
-POST /api/engine/sync
-```
-
-Used to synchronize geospatial analysis results.
-
-#### Request Fields
-
-```json
-{
-  "latitude": 28.6139,
-  "longitude": 77.2090,
-  "estimated_area_sqft": 1500,
-  "sunlight_hours_per_day": 8,
-  "verification_score": 0.95
-}
-```
-
----
-
-### 3. Get Verified Spaces
-
-```http
-GET /api/roofs/verified
-```
-
-Returns verified spaces available for discovery.
-
-#### Response Fields
-
-```json
-{
-  "roof_id": 1,
-  "area_sqft": 1500,
-  "coordinates": {
-    "latitude": 28.6139,
-    "longitude": 77.2090
-  },
-  "status": "verified"
-}
-```
-
----
-
-## 🔐 Environment Variables
-
-Sensitive information such as API keys, database credentials,
-and other secrets should never be hardcoded.
-
-Create a `.env` file for local development.
-
-```env
-DATABASE_URL=your_database_url
-GEE_API_KEY=your_gee_api_key
-VITE_API_BASE_URL=your_backend_url
-```
-
-> ⚠️ Never commit your real `.env` file to GitHub.
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the Repository
+### Backend
 
 ```bash
-git clone https://github.com/Devdootjii/Devdoots_VyomAcre.git
+cd backend
+python -m venv .venv && .venv\Scripts\activate     # Windows
+pip install -r requirements.txt
 ```
 
-### 2. Enter the Project
+Create `backend/.env`:
+
+```
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+JWT_SECRET=any-long-random-string
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+GEMINI_API_KEY=...
+```
 
 ```bash
-cd Devdoots_VyomAcre
+uvicorn main:app --reload --port 8000
 ```
 
-### 3. Install Dependencies
+Swagger is at `http://localhost:8000/docs`. Tables are created on startup.
 
-Install the dependencies according to the individual
-`frontend`, `backend`, and `engine` configurations.
+### Frontend
 
-### 4. Configure Environment
-
-Create your local `.env` file and add the required environment
-variables.
-
-### 5. Run the Application
-
-Start the frontend, backend, and geospatial engine according to
-their respective development configurations.
-
----
-
-## ☁️ Deployment
-
-The planned deployment architecture includes:
-
-```text
-Frontend
-   │
-   ▼
-Vercel
-
-Backend
-   │
-   ▼
-Render / Railway
-
-Database
-   │
-   ▼
-Supabase / Render PostgreSQL
+```bash
+cd frontend
+npm install
+npm run dev          # http://localhost:5173
 ```
 
----
+`frontend/src/services/api.js` holds the API base URL.
 
-## 👥 Team Devdoots
+### Earth Engine
 
-| Member | Responsibility |
-|---|---|
-| **Divyansh** | TPM & Backend |
-| **Balram** | Geospatial Engine |
-| **Aryan** | Frontend UI/UX |
-| **Ritesh** | Map Dashboard |
-| **Harsh** | Scrum Master & QA |
-| **Khushi** | Cloud & Resource Management |
+`engine/` needs a service-account JSON and `earthengine authenticate`. Without
+it the verification endpoint falls back and listings stay pending — the rest of
+the app works fine.
 
 ---
 
-## 🛣️ Roadmap
+## API
 
-- [x] Repository & project structure
-- [x] Team role distribution
-- [ ] Frontend onboarding flow
-- [ ] Interactive map dashboard
-- [ ] Backend API implementation
-- [ ] Geospatial engine integration
-- [ ] Database integration
-- [ ] Cloud deployment
-- [ ] End-to-end platform testing
+| Method | Path | Who |
+|---|---|---|
+| POST | `/api/auth/signup`, `/api/auth/login` | public |
+| GET | `/api/roofs` | public |
+| POST | `/api/roofs` | owner |
+| GET | `/api/roofs/{id}` | owner of that roof, or seeker after acceptance |
+| POST | `/api/lease-requests` | seeker |
+| PATCH | `/api/lease-requests/{id}` | owner — body `{"status": "accepted" \| "rejected"}` |
+| GET | `/api/admin/roofs`, `/api/admin/stats` | admin |
+| POST | `/api/ai/ask` | public |
 
----
-
-## 🤝 Contributing
-
-VyomAcre follows a feature-branch and pull-request workflow.
-
-```text
-main
- │
- ├── feature / fix / docs branch
- │
- ▼
-Pull Request
- │
- ▼
-Code Review
- │
- ▼
-Merge
-```
-
-Please create a separate branch for your work and submit a pull
-request instead of pushing directly to `main`.
+`PATCH /api/lease-requests/{id}` accepts only `accepted` or `rejected`. Sending
+`leased` returns 422 — the lease status enum is separate from the roof status
+enum.
 
 ---
 
-## 📜 License
+## Deployment notes
 
-This project is developed by **Team Devdoots**.
+These cost us a day each, so they are written down.
 
-License information will be added as the project progresses.
+- **CORS.** `CORS_ORIGINS` must list the deployed frontend URL, not just
+  localhost. Missing it shows up as "login works locally, fails on Vercel".
+- **SQLAlchemy is pinned below 2.1.** From 2.1 the `postgresql://` prefix
+  resolves to `psycopg` (v3) instead of `psycopg2`, and the app dies at startup
+  with `ModuleNotFoundError: No module named 'psycopg'`. `database.py` also
+  forces the driver explicitly.
+- **Neon, not a Render free database.** Render's free Postgres expires after 30
+  days and then refuses connections; the backend crashes on startup because it
+  creates tables at boot. Neon's free tier does not expire.
+- **Render free web services sleep** after 15 minutes. The first request takes
+  about 50 seconds. Wake it before a demo.
+- **`google-generativeai` is deprecated** in favour of `google.genai`. It still
+  works, but the migration is pending.
 
 ---
 
-<p align="center">
-  Built with ❤️ by <strong>Team Devdoots</strong>
-</p>
+## Status
 
+Working end to end: signup → list a roof → admin verify → seeker request →
+owner accepts → contact unlocks → roof marked leased.
+
+Next: farmland and building listings (interest is already being collected in the
+lead form), in-app agreements, payments, and account recovery.
+
+---
+
+## Team
+
+Team Devdoots — Divyansh Kumar (TPM, backend and AI), Ritesh (maps and
+geospatial), Balram (API integration), Harsh (routing and frontend), Khushi
+(data and seeding).
+
+Built for *Build with AI: Code for Communities*.
